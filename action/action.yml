@@ -36,6 +36,10 @@ inputs:
     description: 'Path to schema file for review validation'
     required: false
 
+  settings:
+    description: 'JSON settings for Claude Code (for MCP servers, etc)'
+    required: false
+
 runs:
   using: 'composite'
   steps:
@@ -65,7 +69,7 @@ runs:
         cd ${{ github.action_path }}/..
         uv run --python 3.13 -m cletus_code.run_review \
           --changed-files "${{ inputs.changed-files }}" \
-          ${{"inputs.skill:+ --skill ${{ inputs.skill }}"}} \
+          ${{ inputs.skill != '' && format('--skill {0}', inputs.skill) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
     # Run Claude Code with the generated prompt
@@ -76,6 +80,7 @@ runs:
         anthropic_api_key: ${{ inputs.anthropic-api-key }}
         github_token: ${{ inputs.github-token }}
         claude_args: ${{ inputs.claude-args }}
+        settings: ${{ inputs.settings }}
 
     # Process and publish the review results
     - name: Process review results
