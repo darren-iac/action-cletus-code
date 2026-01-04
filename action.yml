@@ -84,6 +84,21 @@ runs:
         claude_args: ${{ inputs.claude-args }}
         settings: ${{ inputs.settings }}
 
+    # Copy review output from workspace to action directory
+    - name: Copy review output
+      shell: bash
+      run: |
+        # Claude Code writes to output/review.json in the workspace
+        # We need to copy it to the action's output directory
+        if [ -f "${{ github.workspace }}/output/review.json" ]; then
+          mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
+          cp "${{ github.workspace }}/output/review.json" "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
+          echo "Copied review.json from workspace to action directory"
+        else
+          echo "Warning: review.json not found in workspace at ${{ github.workspace }}/output/review.json"
+          ls -la "${{ github.workspace }}/output/" || echo "output directory doesn't exist"
+        fi
+
     # Process and publish the review results
     - name: Process review results
       shell: bash
