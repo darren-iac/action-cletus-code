@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/darren-iac/action-cletus-code/compare/v0.1.0...v0.2.0) (2026-01-04)
+
+
+### Features
+
+* add settings input for Claude Code configuration ([7cf81fe](https://github.com/darren-iac/action-cletus-code/commit/7cf81fe99d6fd5bbce275da7680137b980ad7bc6))
+* publish updated action with all inputs ([84ddbb3](https://github.com/darren-iac/action-cletus-code/commit/84ddbb381a5c323bb8b846e4bc89070af29a52b1))
+
 ## 0.1.0 (2026-01-04)
 
 
