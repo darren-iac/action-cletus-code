@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/darren-iac/action-cletus-code/compare/v0.2.4...v0.2.5) (2026-01-04)
+
+
+### Bug Fixes
+
+* use single quotes for changed-files to preserve JSON ([ea324d0](https://github.com/darren-iac/action-cletus-code/commit/ea324d040adfda4d9cfb019d427e9d99bab801b0))
+
 ## [0.2.4](https://github.com/darren-iac/action-cletus-code/compare/v0.2.3...v0.2.4) (2026-01-04)
 
 
