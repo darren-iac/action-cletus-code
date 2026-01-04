@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/darren-iac/action-cletus-code/compare/v0.2.1...v0.2.2) (2026-01-04)
+
+
+### Bug Fixes
+
+* update root action.yml with correct inputs ([84c7d6e](https://github.com/darren-iac/action-cletus-code/commit/84c7d6e8b3ae5c7183e434dd774f12ae75a4d357))
+
 ## [0.2.1](https://github.com/darren-iac/action-cletus-code/compare/v0.2.0...v0.2.1) (2026-01-04)
 
 
