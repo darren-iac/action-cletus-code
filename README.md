@@ -1,15 +1,42 @@
 # Cletus Code Review
 
-A GitHub Action that provides AI-powered pull request reviews with auto-merge capabilities.
+A GitHub Action that provides AI-powered pull request reviews with plugin support and auto-merge capabilities.
 
 ## Features
 
 - **AI-Powered Reviews**: Leverages Claude AI to analyze pull requests
+- **Plugin System**: Extensible plugins for pre-processing (kustomize, terraform, etc.)
+- **Skill-Based Reviews**: Repo-specific or general review guidance via skills
 - **Auto-Merge**: Automatically merge approved PRs based on configurable rules
 - **Label Management**: Automatically applies labels based on review results
 - **Rich Markdown Comments**: Publishes beautifully formatted review comments
-- **GitHub Enterprise Support**: Works with both GitHub.com and GitHub Enterprise
-- **Robust Error Handling**: Comprehensive retry logic and graceful degradation
+
+## Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  changed-files  │────▶│  Cletus Action   │────▶│  Claude Code    │
+│     Action      │     │                  │     │     Action      │
+└─────────────────┘     │  ┌────────────┐  │     └─────────────────┘
+                        │  │  Plugins   │  │
+                        │  │  - kustomize││
+                        │  │  - terraform││
+                        │  └────────────┘  │
+                        │  ┌────────────┐  │
+                        │  │   Skills   │  │
+                        │  │  - general │  │
+                        │  │  - k8s     │  │
+                        │  └────────────┘  │
+                        └──────────────────┘
+                                 │
+                                 ▼
+                        ┌──────────────────┐
+                        │  Review Results  │
+                        │  - Comment       │
+                        │  - Labels        │
+                        │  - Auto-merge    │
+                        └──────────────────┘
+```
 
 ## Usage
 
@@ -20,40 +47,131 @@ name: Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: step-security/changed-files@v46
+        id: changed-files
+        with:
+          dir_names: true
 
-      - name: Run Cletus Code Review
-        uses: your-org/action-cletus-code@v1
+      - uses: your-org/action-cletus-code@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          review-file: review.json
+          changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### With Auto-Merge
+### With Custom Skill
 
 ```yaml
-      - name: Run Cletus Code Review
-        uses: your-org/action-cletus-code@v1
+      - uses: your-org/action-cletus-code@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          review-file: review.json
-          auto-merge: 'true'
-          auto-merge-labels: 'renovate,dependencies'
+          changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          skill: python-review  # Use specific skill instead of auto-detect
 ```
 
-### With Custom Config
+### K8s/Kustomize Workflow
 
-Create a `.github/cletus-code.yaml` file in your repository:
+The kustomize plugin automatically detects `kustomization.yaml` files and generates diffs:
+
+```yaml
+name: K8s Review
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/changed-files@v46
+        id: changed-files
+        with:
+          dir_names: true
+          dir_names_max_depth: 3
+
+      - uses: your-org/action-cletus-code@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+The action will:
+1. Detect kustomize files in changed directories
+2. Render manifests for both base and PR
+3. Post a diff comment
+4. Include the diff in the Claude review context
+
+## Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `github-token` | Yes | `${{ github.token }}` | GitHub token for API access |
+| `changed-files` | Yes | | JSON array of changed file paths from changed-files action |
+| `anthropic-api-key` | Yes | | Anthropic API key for Claude Code |
+| `skill` | No | (auto-detect) | Specific review skill to use |
+| `output-dir` | No | `output` | Directory for output files |
+| `claude-args` | No | `--dangerously-skip-permissions` | Additional arguments for Claude Code |
+| `schema-file` | No | | Path to schema file for review validation |
+
+## Skills
+
+Skills define how Claude should review your code. The action looks for skills in this order:
+
+1. **Explicit skill** from `skill` input
+2. **Repo-specific skill** from central `.github` repo (e.g., `.claude/skills/k8s-argocd-review.md`)
+3. **Default general skill** (built-in)
+
+### Creating a Custom Skill
+
+Add a skill file to your central `.github` repository:
+
+```
+.github/
+└── .claude/
+    └── skills/
+        └── my-service-review.md
+```
+
+Then use it:
+
+```yaml
+      - uses: your-org/action-cletus-code@v1
+        with:
+          skill: my-service-review
+          # ...
+```
+
+## Plugins
+
+Plugins extend the action with pre-processing capabilities.
+
+### Available Plugins
+
+- **kustomize**: Detects `kustomization.yaml` files, renders manifests, and generates diffs
+
+### Plugin Auto-Detection
+
+Plugins run automatically when their conditions are met:
+- Kustomize plugin runs when any `kustomization.yaml` is in changed files
+
+## Configuration
+
+### Auto-Merge
+
+Create `.github/claude-review.yaml` in your repository:
 
 ```yaml
 auto_merge:
@@ -61,93 +179,44 @@ auto_merge:
   branch_prefixes:
     - renovate/
     - dependabot/
-
-labels:
-  approved:
-    name: 'cletus:approved'
-    color: '0e8a16'
-    description: 'Approved by Cletus'
-  rejected:
-    name: 'cletus:rejected'
-    color: 'd93f0b'
-    description: 'Rejected by Cletus'
+  author_logins:
+    - trusted-bot
 ```
 
-## Inputs
+### Label Colors
 
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `github-token` | Yes | `${{ github.token }}` | GitHub token for API access |
-| `review-file` | Yes | `review.json` | Path to the review JSON file |
-| `auto-merge` | No | `false` | Enable auto-merge for approved PRs |
-| `auto-merge-labels` | No | `renovate,dependencies` | Labels that trigger auto-merge |
-| `api-base-url` | No | | Custom GitHub API base URL (for GitHub Enterprise) |
-| `claude-api-key` | No | | Claude API key for AI analysis |
-| `config-path` | No | `.github/cletus-code.yaml` | Path to repo-specific config |
+Labels are automatically derived from review findings. Configure colors in `.github/process_review/config.yaml`:
 
-## Outputs
-
-| Output | Description |
-|--------|-------------|
-| `review-posted` | Whether the review was successfully posted |
-| `auto-merged` | Whether the PR was auto-merged |
-| `verdict` | The review verdict (`approve`/`request_changes`/`comment`) |
-
-## Review File Format
-
-The action expects a JSON file with the following format:
-
-```json
-{
-  "verdict": "approve",
-  "summary": "LGTM! This looks good.",
-  "details": [
-    {
-      "file": "src/main.py",
-      "line": 42,
-      "severity": "info",
-      "message": "Consider adding type hints here."
-    }
-  ]
-}
+```yaml
+labels:
+  default_color: "6f42c1"
+  risk_colors:
+    HIGH: "d73a4a"
+    MEDIUM: "fbca04"
+    LOW: "2da44e"
+  change_type_colors:
+    create: "2da44e"
+    update: "0e8a16"
+    delete: "d73a4a"
 ```
 
 ## Permissions
 
-The action requires the following permissions:
-
 ```yaml
 permissions:
-  contents: write      # For auto-merge
-  pull-requests: write # For posting reviews and comments
+  contents: read       # For fetching files and checking out refs
+  pull-requests: write # For posting reviews, comments, and merging
 ```
 
-## Development
+## Outputs
 
-### Running Locally
-
-```bash
-# Install dependencies
-pip install -e .
-
-# Run the module
-python -m cletus_code --help
-```
-
-### Running Tests
-
-```bash
-# Install test dependencies
-pip install pytest pytest-cov
-
-# Run tests
-pytest
-```
+The action produces:
+- **Review comment**: Formatted markdown comment on the PR
+- **Labels**: Applied based on review findings
+- **Auto-merge**: PR is merged if approved and conditions are met
+- **review.md**: Markdown review file in output directory
+- **review.json**: Structured review data in output directory
 
 ## License
 
 MIT
-
-## Support
-
-For issues and questions, please [open an issue](https://github.com/your-org/action-cletus-code/issues).

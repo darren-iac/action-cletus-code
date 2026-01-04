@@ -1,4 +1,4 @@
-"""Process reviews from Temu Claude Code."""
+"""Cletus Code - AI-powered pull request review."""
 
 __version__ = "0.1.0"
 
@@ -12,8 +12,9 @@ from .process_review import (
     apply_labels,
     publish_comment,
     approve_and_merge,
-    main,
+    main as process_review_main,
 )
+from .run_review import ReviewOrchestrator, main as run_review_main
 
 __all__ = [
     "load_review_data",
@@ -24,5 +25,7 @@ __all__ = [
     "apply_labels",
     "publish_comment",
     "approve_and_merge",
-    "main",
+    "process_review_main",
+    "ReviewOrchestrator",
+    "run_review_main",
 ]

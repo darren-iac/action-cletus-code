@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build package
+        run: |
+          uv build --wheel
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Get version from tag
+          VERSION="${TAG#v}"
+
+          # Get the wheel file
+          WHEEL_FILE=$(ls dist/*.whl)
+
+          # Create release with the wheel as an asset
+          gh release create "$TAG" \
+            --title "Cletus Code $VERSION" \
+            --notes "Release $VERSION of Cletus Code" \
+            "$WHEEL_FILE"
+
+      - name: Build and publish docs
+        if: false  # Enable if you have docs
+        run: |
+          # Add documentation building steps here if needed
+          echo "Documentation building skipped"

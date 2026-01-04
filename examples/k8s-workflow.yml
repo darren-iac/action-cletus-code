@@ -1,0 +1,52 @@
+name: Cletus Code Review
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to re-review"
+        required: true
+        type: number
+
+jobs:
+  review:
+    runs-on: arc-runners
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - uses: actions/create-github-app-token@bf559f85448f9380bcfa2899dbdc01eb5b37be3a # v3.0.0-beta.2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Resolve PR number
+        id: pr-number
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "pr_number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_number=${{ github.event.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: step-security/changed-files@95b56dadb92a30ca9036f16423fd3c088a71ee94 # v46.0.5
+        id: changed-files
+        with:
+          dir_names: true
+          dir_names_exclude_current_dir: true
+          dir_names_max_depth: 3
+
+      - uses: your-org/action-cletus-code@v1
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+          anthropic-api-key: ${{ secrets.CLAUDE_CODE_TOKEN }}
+          # skill: k8s-argocd-review  # Optional: auto-detected for k8s repo
