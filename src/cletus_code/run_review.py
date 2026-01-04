@@ -480,12 +480,19 @@ def main(argv: Optional[list[str]] = None) -> None:
     # Parse changed files
     changed_files: list[str] = []
     if args.changed_files:
-        changed_files = json.loads(args.changed_files)
+        try:
+            changed_files = json.loads(args.changed_files)
+        except json.JSONDecodeError:
+            # If not valid JSON, treat as space/newline separated
+            changed_files = [f for f in args.changed_files.split() if f]
     else:
         # Try environment variable
         env_changed = os.environ.get("CHANGED_FILES")
         if env_changed:
-            changed_files = json.loads(env_changed)
+            try:
+                changed_files = json.loads(env_changed)
+            except json.JSONDecodeError:
+                changed_files = [f for f in env_changed.split() if f]
 
     # Get GitHub token
     token = os.environ.get("GITHUB_TOKEN")
