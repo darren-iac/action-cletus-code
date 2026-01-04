@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/darren-iac/action-cletus-code/compare/v0.2.2...v0.2.3) (2026-01-04)
+
+
+### Bug Fixes
+
+* add PATH export for uv in all steps ([85616f4](https://github.com/darren-iac/action-cletus-code/commit/85616f43c5ec4ea0731a0238f078309ffef80f95))
+
 ## [0.2.2](https://github.com/darren-iac/action-cletus-code/compare/v0.2.1...v0.2.2) (2026-01-04)
 
 
