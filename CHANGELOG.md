@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/darren-iac/action-cletus-code/compare/v0.2.5...v0.2.6) (2026-01-04)
+
+
+### Bug Fixes
+
+* correct imports in process_review.py ([48d5364](https://github.com/darren-iac/action-cletus-code/commit/48d5364295ca169d14b948a8e8b41528adc04b2f))
+
 ## [0.2.5](https://github.com/darren-iac/action-cletus-code/compare/v0.2.4...v0.2.5) (2026-01-04)
 
 

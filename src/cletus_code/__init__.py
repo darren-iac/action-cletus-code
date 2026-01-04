@@ -1,6 +1,6 @@
 """Cletus Code - AI-powered pull request review."""
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 # Import main functions for easier access
 from .process_review import (

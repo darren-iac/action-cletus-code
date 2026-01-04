@@ -1,6 +1,6 @@
 [project]
 name = "cletus-code"
-version = "0.2.5"
+version = "0.2.6"
 description = "AI-powered pull request review with auto-merge capabilities"
 readme = "README.md"
 requires-python = ">=3.13"
