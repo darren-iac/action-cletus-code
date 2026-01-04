@@ -70,7 +70,7 @@ runs:
         export PATH="$HOME/.local/bin:$PATH"
         cd ${{ github.action_path }}
         uv run --python 3.13 -m cletus_code.run_review \
-          --changed-files "${{ inputs.changed-files }}" \
+          --changed-files '${{ inputs.changed-files }}' \
           ${{ inputs.skill != '' && format('--skill {0}', inputs.skill) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
