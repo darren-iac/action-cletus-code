@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/darren-iac/action-cletus-code/compare/v0.3.0...v0.3.1) (2026-01-04)
+
+
+### Bug Fixes
+
+* copy review.json from workspace to action directory ([20bb327](https://github.com/darren-iac/action-cletus-code/commit/20bb327302b8f5a356c92301e9d0d560f53eabb3))
+
 ## [0.3.0](https://github.com/darren-iac/action-cletus-code/compare/v0.2.6...v0.3.0) (2026-01-04)
 
 
