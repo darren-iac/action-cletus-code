@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/darren-iac/action-cletus-code/compare/v0.2.3...v0.2.4) (2026-01-04)
+
+
+### Bug Fixes
+
+* use correct .local/bin path for uv ([426a905](https://github.com/darren-iac/action-cletus-code/commit/426a905c87b47ac107f2e430ea7a66dc24287d3d))
+
 ## [0.2.3](https://github.com/darren-iac/action-cletus-code/compare/v0.2.2...v0.2.3) (2026-01-04)
 
 
