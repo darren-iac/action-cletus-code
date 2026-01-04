@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/darren-iac/action-cletus-code/compare/v0.2.6...v0.3.0) (2026-01-04)
+
+
+### Features
+
+* accept space-separated changed-files input in Python ([1380599](https://github.com/darren-iac/action-cletus-code/commit/1380599aafdcb712f383959abd74e1469a2d7501))
+
 ## [0.2.6](https://github.com/darren-iac/action-cletus-code/compare/v0.2.5...v0.2.6) (2026-01-04)
 
 
