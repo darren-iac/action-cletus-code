@@ -1,6 +1,8 @@
 name: 'Cletus Code Review'
-description: 'AI-powered pull request review with auto-merge capabilities'
-author: 'Darren'
+description: 'AI-powered pull request review with plugin support and auto-merge capabilities'
+branding:
+  icon: 'eye'
+  color: 'purple'
 
 inputs:
   github-token:
@@ -8,72 +10,87 @@ inputs:
     required: true
     default: ${{ github.token }}
 
-  review-file:
-    description: 'Path to the review JSON file'
+  changed-files:
+    description: 'JSON array of changed file paths from changed-files action'
     required: true
-    default: 'review.json'
 
-  auto-merge:
-    description: 'Enable auto-merge for approved PRs'
-    required: false
-    default: 'false'
-
-  auto-merge-labels:
-    description: 'Comma-separated list of labels that trigger auto-merge'
-    required: false
-    default: 'renovate,dependencies'
-
-  api-base-url:
-    description: 'Custom GitHub API base URL (for GitHub Enterprise)'
+  skill:
+    description: 'Specific review skill to use (default: auto-detect from repo)'
     required: false
 
-  claude-api-key:
-    description: 'Claude API key for AI analysis'
+  output-dir:
+    description: 'Directory for output files'
+    required: false
+    default: 'output'
+
+  claude-args:
+    description: 'Additional arguments to pass to Claude Code action'
+    required: false
+    default: '--dangerously-skip-permissions'
+
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude Code'
+    required: true
+
+  schema-file:
+    description: 'Path to schema file for review validation'
     required: false
 
-  config-path:
-    description: 'Path to repo-specific config file'
+  settings:
+    description: 'JSON settings for Claude Code (for MCP servers, etc)'
     required: false
-    default: '.github/cletus-code.yaml'
-
-outputs:
-  review-posted:
-    description: 'Whether the review was successfully posted'
-    value: ${{ steps.review.outputs.review-posted }}
-
-  auto-merged:
-    description: 'Whether the PR was auto-merged'
-    value: ${{ steps.review.outputs.auto-merged }}
-
-  verdict:
-    description: 'The review verdict (approve/request_changes/comment)'
-    value: ${{ steps.review.outputs.verdict }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-
-    - name: Install dependencies
+    # Setup Python
+    - name: Setup Python
       shell: bash
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ${{ github.action_path }}
+        if command -v uv &> /dev/null; then
+          echo "uv already installed"
+        else
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        fi
+        uv --version
+        uv python install 3.13
 
-    - name: Run review
-      id: review
+    # Run the review orchestrator
+    - name: Run review orchestrator
       shell: bash
-      run: |
-        python -m cletus_code \
-          --review-file "${{ inputs.review-file }}" \
-          --github-token "${{ inputs.github-token }}" \
-          --auto-merge "${{ inputs.auto-merge }}" \
-          --config-path "${{ inputs.config-path }}"
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        GITHUB_REF: ${{ github.ref }}
-        GITHUB_EVENT_PATH: ${{ github.event_path }}
+        CHANGED_FILES: ${{ inputs.changed-files }}
+        CLETUS_SKILL: ${{ inputs.skill }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+        REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
+      run: |
+        cd ${{ github.action_path }}
+        uv run --python 3.13 -m cletus_code.run_review \
+          --changed-files "${{ inputs.changed-files }}" \
+          ${{ inputs.skill != '' && format('--skill {0}', inputs.skill) || '' }} \
+          --output-dir "${{ inputs.output-dir }}"
+
+    # Run Claude Code with the generated prompt
+    - name: Run Claude Code
+      uses: anthropics/claude-code-action@v1
+      with:
+        prompt: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
+        anthropic_api_key: ${{ inputs.anthropic-api-key }}
+        github_token: ${{ inputs.github-token }}
+        claude_args: ${{ inputs.claude-args }}
+        settings: ${{ inputs.settings }}
+
+    # Process and publish the review results
+    - name: Process review results
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+        REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
+      run: |
+        cd ${{ github.action_path }}
+        uv run --python 3.13 -m cletus_code.process_review \
+          --output-dir "${{ inputs.output-dir }}" \
+          ${{ inputs.schema-file != '' && format('--schema-file {0}', inputs.schema-file) || '' }}
