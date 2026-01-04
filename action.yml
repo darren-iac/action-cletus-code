@@ -51,9 +51,9 @@ runs:
           echo "uv already installed"
         else
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
         fi
-        export PATH="$HOME/.cargo/bin:$PATH"
+        export PATH="$HOME/.local/bin:$PATH"
         uv --version
         uv python install 3.13
 
@@ -67,7 +67,7 @@ runs:
         OUTPUT_DIR: ${{ inputs.output-dir }}
         REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
       run: |
-        export PATH="$HOME/.cargo/bin:$PATH"
+        export PATH="$HOME/.local/bin:$PATH"
         cd ${{ github.action_path }}
         uv run --python 3.13 -m cletus_code.run_review \
           --changed-files "${{ inputs.changed-files }}" \
@@ -92,7 +92,7 @@ runs:
         OUTPUT_DIR: ${{ inputs.output-dir }}
         REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
       run: |
-        export PATH="$HOME/.cargo/bin:$PATH"
+        export PATH="$HOME/.local/bin:$PATH"
         cd ${{ github.action_path }}
         uv run --python 3.13 -m cletus_code.process_review \
           --output-dir "${{ inputs.output-dir }}" \
