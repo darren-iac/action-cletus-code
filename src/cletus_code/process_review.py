@@ -86,17 +86,18 @@ if __package__ is None or __name__ == "__main__":
     # Running as script - add parent directory to path for absolute imports
     import sys
     from pathlib import Path
+    # Go up to src directory
     parent_dir = str(Path(__file__).parent.parent)
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
-    # Use absolute imports from the parent directory
-    from process_review.config import (
+    # Import from cletus_code package
+    from cletus_code.config import (
         load_config,
         get_label_config,
         load_review_config,
         get_auto_merge_config,
     )
-    from process_review.utils import truncate, normalize_risk, risk_sort_key, make_anchor, format_resource
+    from cletus_code.utils import truncate, normalize_risk, risk_sort_key, make_anchor, format_resource
 else:
     # Running as module - use relative imports
     from .config import (
