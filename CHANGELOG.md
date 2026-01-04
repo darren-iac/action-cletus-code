@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/darren-iac/action-cletus-code/compare/v0.2.0...v0.2.1) (2026-01-04)
+
+
+### Documentation
+
+* update README for v0.3.0 with caching fix ([646ea2f](https://github.com/darren-iac/action-cletus-code/commit/646ea2fe6638529c8bd6cbd9b0318070fe3650df))
+
 ## [0.2.0](https://github.com/darren-iac/action-cletus-code/compare/v0.1.0...v0.2.0) (2026-01-04)
 
 
