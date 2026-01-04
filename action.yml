@@ -1,0 +1,79 @@
+name: 'Cletus Code Review'
+description: 'AI-powered pull request review with auto-merge capabilities'
+author: 'Darren'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+
+  review-file:
+    description: 'Path to the review JSON file'
+    required: true
+    default: 'review.json'
+
+  auto-merge:
+    description: 'Enable auto-merge for approved PRs'
+    required: false
+    default: 'false'
+
+  auto-merge-labels:
+    description: 'Comma-separated list of labels that trigger auto-merge'
+    required: false
+    default: 'renovate,dependencies'
+
+  api-base-url:
+    description: 'Custom GitHub API base URL (for GitHub Enterprise)'
+    required: false
+
+  claude-api-key:
+    description: 'Claude API key for AI analysis'
+    required: false
+
+  config-path:
+    description: 'Path to repo-specific config file'
+    required: false
+    default: '.github/cletus-code.yaml'
+
+outputs:
+  review-posted:
+    description: 'Whether the review was successfully posted'
+    value: ${{ steps.review.outputs.review-posted }}
+
+  auto-merged:
+    description: 'Whether the PR was auto-merged'
+    value: ${{ steps.review.outputs.auto-merged }}
+
+  verdict:
+    description: 'The review verdict (approve/request_changes/comment)'
+    value: ${{ steps.review.outputs.verdict }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ${{ github.action_path }}
+
+    - name: Run review
+      id: review
+      shell: bash
+      run: |
+        python -m cletus_code \
+          --review-file "${{ inputs.review-file }}" \
+          --github-token "${{ inputs.github-token }}" \
+          --auto-merge "${{ inputs.auto-merge }}" \
+          --config-path "${{ inputs.config-path }}"
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_EVENT_PATH: ${{ github.event_path }}
