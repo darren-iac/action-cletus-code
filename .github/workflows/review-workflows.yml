@@ -53,7 +53,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           changed-files: ${{ steps.changed-files.outputs.files }}
           # Use multiple skills: local GitHub Actions reviewer + built-in PR toolkit
-          skills: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
+          skills-json: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude-args: '--dangerously-skip-permissions'
 
