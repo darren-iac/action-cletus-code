@@ -1,0 +1,32 @@
+# act configuration for local GitHub Actions testing
+# See https://github.com/nektos/act#configuration
+
+# Use the catthehacker image which has most tools pre-installed
+# This is important because the action uses Python + uv
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest
+
+# Set architecture for Apple M-series chips
+--container-architecture linux/amd64
+
+# Keep containers around for debugging (useful for troubleshooting)
+# Comment this out for faster testing
+# -r
+
+# Don't use the default GitHub graphQL (act will handle this)
+# --graph
+
+# Dry run to see what would happen without actually running
+# Comment this out when you want to actually test
+# -n
+
+# Bind mount the workspace to avoid re-cloning
+-b
+
+# Use the local container runtime (Colima in this case)
+# This is the default on macOS/Linux
+
+# Force pull of latest image? Comment out to use cached images
+# --pull
+
+# Don't force pull - use local images
+--pull=false

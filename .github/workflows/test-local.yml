@@ -1,0 +1,47 @@
+# Local testing workflow for use with act (https://github.com/nektos/act)
+# This workflow is designed to work with act for local testing before pushing changes
+#
+# Usage:
+#   1. Copy .secrets.example to .secrets and fill in your values
+#   2. Run: act -j test-local --secret-file .secrets
+#   3. Or use the ./scripts/act-test.sh helper script
+
+name: Local Test (act only)
+
+on:
+  workflow_dispatch:  # Manual trigger only for local act testing
+
+jobs:
+  test-local:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create test PR branch
+        run: |
+          git checkout -b test-pr-branch
+          git checkout main
+
+      - name: Setup changed files (mock for local testing)
+        id: changed-files
+        run: |
+          # Mock changed files for local testing
+          # In real PR, this comes from step-security/changed-files action
+          cat > "$GITHUB_OUTPUT" << 'EOF'
+          all_changed_files=["src/","action/action.yml","README.md"]
+          EOF
+
+      - name: Run Cletus Code Review
+        uses: ./ # Uses local action for testing
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-args: '--dangerously-skip-permissions'

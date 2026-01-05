@@ -217,6 +217,97 @@ The action produces:
 - **review.md**: Markdown review file in output directory
 - **review.json**: Structured review data in output directory
 
+## Local Testing with act
+
+You can test this action locally using [act](https://github.com/nektos/act) before pushing changes to GitHub. This is especially useful for catching errors early without committing to git.
+
+### Prerequisites
+
+1. **Install act**:
+   ```bash
+   brew install act
+   ```
+
+2. **Start Colima** (or your Docker runtime):
+   ```bash
+   colima start
+   ```
+
+3. **Configure secrets** (for full integration test):
+   ```bash
+   cp .secrets.example .secrets
+   # Edit .secrets with your actual tokens
+   ```
+
+### Running Tests
+
+The project includes two test workflows for local testing:
+
+#### Unit Test (No API Keys Required)
+
+Tests basic functionality without external API calls:
+
+```bash
+./scripts/act-test.sh
+```
+
+Or directly with act:
+```bash
+act -j test-unit
+```
+
+This validates:
+- Python and uv installation
+- Project structure
+- Python imports
+- CLI entry point
+
+#### Full Integration Test (Requires API Keys)
+
+Tests the complete action including external API calls:
+
+```bash
+# First configure .secrets with your tokens
+./scripts/act-test.sh -j test-local
+```
+
+Or directly with act:
+```bash
+act -j test-local --secret-file .secrets
+```
+
+### Configuration
+
+The `.actrc` file configures act for local development:
+
+- **Platform**: `catthehacker/ubuntu:act-latest` image with pre-installed tools
+- **Architecture**: `linux/amd64` for Apple M-series compatibility
+- **No force pull**: Uses cached images for faster testing
+
+You can override these settings temporarily:
+```bash
+act -j test-unit --pull  # Force pull latest image
+```
+
+### Troubleshooting
+
+**Docker connection issues**:
+```bash
+# Check Colima is running
+colima status
+
+# Restart if needed
+colima restart
+```
+
+**Container architecture issues on Apple Silicon**:
+The `.actrc` already includes `--container-architecture linux/amd64` for compatibility.
+
+**View act logs in verbose mode**:
+```bash
+./scripts/act-test.sh -v
+```
+
 ## License
 
 MIT

@@ -69,3 +69,4 @@ Thumbs.db
 *.log
 review.json
 .secrets.local
+.secrets
