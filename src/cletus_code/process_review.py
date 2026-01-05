@@ -898,11 +898,15 @@ def publish_comment(pr: PullRequest, markdown: str) -> None:
     existing_comment_id = None
     try:
         comments = pr.get_issue_comments()
+        comment_count = 0
         for comment in comments:
+            comment_count += 1
+            logger.info(f"Checking comment {comment.id}: user={comment.user.login}, type={comment.user.type}, has_code_review={'Code Review' in comment.body}")
             if comment.user.type == "Bot" and "Code Review" in comment.body:
                 existing_comment_id = comment.id
                 logger.info(f"Found existing bot comment to update: {existing_comment_id}")
                 break
+        logger.info(f"Checked {comment_count} comments for existing 'Code Review' bot comment")
     except Exception as exc:
         logger.warning(f"Could not check for existing comments: {exc}")
         # Continue to create new comment
