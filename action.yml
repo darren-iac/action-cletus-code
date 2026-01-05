@@ -110,7 +110,7 @@ runs:
 
         if [ -f "$EXECUTION_FILE" ]; then
           # Extract JSON from the execution file using a Python script
-          python3 << 'PYTHON_EOF'
+          cat > /tmp/extract_json.py << 'PYEOF'
 import json
 import re
 import sys
@@ -144,9 +144,9 @@ except json.JSONDecodeError as e:
     print(f"Error: Invalid JSON: {e}")
     print(f"JSON string was: {json_str[:500]}...")
     sys.exit(1)
-PYTHON_EOF
+PYEOF
 
-          python3 "$EXECUTION_FILE" "$OUTPUT_DIR/review.json"
+          python3 /tmp/extract_json.py "$EXECUTION_FILE" "$OUTPUT_DIR/review.json"
         else
           echo "Error: Execution file not found at $EXECUTION_FILE"
           exit 1
