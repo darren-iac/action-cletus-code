@@ -1,13 +1,18 @@
-{% set verdict_icon = "✅" if verdict == "Approved" else "🚧" %}
-{% set risk_icon_map = {'LOW': '🟢', 'MEDIUM': '🟠', 'HIGH': '🔴'} %}
-{% set risk_icon = risk_icon_map.get(overall_risk, '❓') %}
+{% set verdict_icon = "✅" if verdict == "Approved" else "❌" %}
+{% set risk_icon_map = {'LOW': '🟢', 'MEDIUM': '🟠', 'HIGH': '🔴', 'CRITICAL': '🔴'} %}
 
-# 🚀 {{ headline }}
+## 🔍 Code Review
 
-**{{ verdict_icon }} Verdict:** {{ verdict }}  
-**{{ risk_icon }} Overall risk:** {{ overall_risk }}
-{% if automation_note %}
-**🤖 Automation:** {{ automation_note }}
+**Decision:** {{ verdict_icon }} {{ verdict }}
+
+**Summary:** {{ summary }}
+
+**Risk Level:** {{ overall_risk }}
+
+{% if automerged is defined %}
+**Automerge:** {{ "Yes - PR was automatically merged" if automerged else "No - PR left for manual review" }}
+{% elif automation_note %}
+**Automerge:** {{ automation_note }}
 {% endif %}
 
 {% if validation_errors %}
@@ -17,80 +22,31 @@
 >{% endfor %}
 
 {% endif %}
-{% if summary and summary != headline %}
-## ✍️ Summary
-{{ summary }}
-
-{% endif %}
 {% if finding_groups %}
-## 🔍 Findings Overview
-{% for group in finding_groups %}### {{ group.type | title }} ({{ group.findings | length }})
-{% for finding in group.findings %}- [{{ finding.title }}](#{{ finding.anchor }}) • Risk: `{{ finding.risk }}`{% if finding.cosmetic %} _(cosmetic)_ {% endif %}
+
+### Key Findings
+
+{% set global_counter = namespace(value=1) %}
+{% for group in finding_groups %}
+{% for finding in group.findings %}
+{{ global_counter.value }}. **[{{ finding.risk }}]** {{ finding.title }}
+   - {{ finding.summary }}
+{% set global_counter.value = global_counter.value + 1 %}
 {% endfor %}
-
 {% endfor %}
-{% endif %}
-## 🧭 Findings
-{% if finding_groups %}
-{% for group in finding_groups %}### {{ group.type | title }}
-{% for finding in group.findings %}<a id="{{ finding.anchor }}"></a>
-{% if finding.collapse %}<details>
-<summary>{{ risk_icon_map.get(finding.risk, '❓') }} **{{ finding.title }}**{% if finding.cosmetic %} _(cosmetic)_ {% endif %} — Risk: `{{ finding.risk }}`</summary>
-
-- Summary: {{ finding.summary }}
-{% if finding.tags %}- Tags: `{% for tag in finding.tags %}{{ tag }}{% if not loop.last %}`, `{% endif %}{% endfor %}`
-{% endif %}{% if finding.subject %}- Subject: {% if finding.subject.kind %}{{ finding.subject.kind }}{% if finding.subject.name %} — {{ finding.subject.name }}{% endif %}{% elif finding.subject.name %}{{ finding.subject.name }}{% endif %}{% if finding.subject.from or finding.subject.to %} (`{{ finding.subject.from or 'n/a' }}` → `{{ finding.subject.to or 'n/a' }}`){% endif %}
-{% endif %}{% if finding.location %}- Location:{% if finding.location.resource %} {{ finding.location.resource }}{% endif %}{% if finding.location.path %}{% if finding.location.resource %} •{% endif %} {{ finding.location.path }}{% if finding.location.line %}:{{ finding.location.line }}{% if finding.location.column %}:{{ finding.location.column }}{% endif %}{% endif %}{% endif %}
-{% endif %}{% if finding.diff %}- Diff:
-    ```diff
-{% for line in finding.diff %}    {{ line }}
-{% endfor %}    ```
-{% endif %}{% if finding.snippet %}- Snippet:
-    ```text
-{% for line in finding.snippet %}    {{ line }}
-{% endfor %}    ```
-{% endif %}{% if finding.yaml %}- YAML:
-    ```yaml
-{% for line in finding.yaml %}    {{ line }}
-{% endfor %}    ```
-{% endif %}{% if finding.references %}
-- References:
-{% for ref in finding.references %}  - {% if ref.note %}{{ ref.note }}{% if ref.url %} ({{ ref.url }}){% endif %}{% else %}{{ ref.url }}{% endif %}
-{% endfor %}{% endif %}
-
-</details>
-
-{% else %}- {{ risk_icon_map.get(finding.risk, '❓') }} **{{ finding.title }}**{% if finding.cosmetic %} _(cosmetic)_ {% endif %}
-  - Risk: `{{ finding.risk }}`{% if finding.tags %} • Tags: `{% for tag in finding.tags %}{{ tag }}{% if not loop.last %}`, `{% endif %}{% endfor %}`{% endif %}
-  - Summary: {{ finding.summary }}
-{% if finding.subject %}  - Subject: {% if finding.subject.kind %}{{ finding.subject.kind }}{% if finding.subject.name %} — {{ finding.subject.name }}{% endif %}{% elif finding.subject.name %}{{ finding.subject.name }}{% endif %}{% if finding.subject.from or finding.subject.to %} (`{{ finding.subject.from or 'n/a' }}` → `{{ finding.subject.to or 'n/a' }}`){% endif %}
-{% endif %}{% if finding.location %}  - Location:{% if finding.location.resource %} {{ finding.location.resource }}{% endif %}{% if finding.location.path %}{% if finding.location.resource %} •{% endif %} {{ finding.location.path }}{% if finding.location.line %}:{{ finding.location.line }}{% if finding.location.column %}:{{ finding.location.column }}{% endif %}{% endif %}{% endif %}
-{% endif %}{% if finding.diff %}  - Diff:
-    ```diff
-{% for line in finding.diff %}    {{ line }}
-{% endfor %}    ```
-{% endif %}{% if finding.snippet %}  - Snippet:
-    ```text
-{% for line in finding.snippet %}    {{ line }}
-{% endfor %}    ```
-{% endif %}{% if finding.yaml %}  - YAML:
-    ```yaml
-{% for line in finding.yaml %}    {{ line }}
-{% endfor %}    ```
-{% endif %}{% if finding.references %}  - References:
-{% for ref in finding.references %}    - {% if ref.note %}{{ ref.note }}{% if ref.url %} ({{ ref.url }}){% endif %}{% else %}{{ ref.url }}{% endif %}
-{% endfor %}{% endif %}
-
-{% endif %}{% endfor %}
-{% endfor %}
-{% else %}_No findings recorded._
+{% else %}
+_No findings recorded._
 {% endif %}
 
 {% if validation_errors %}
-## 🧹 Next steps
+### Next Steps
 - Investigate the schema validation findings above.
 - Update the structured review JSON and rerun this workflow before merging.
 {% elif not finding_groups %}
-## 💤 No functional changes detected
+### No Functional Changes
 The diff contains no functional alterations. Cosmetic updates only.
 {% endif %}
+
+---
+
+*Review generated by Cletus Code Review*

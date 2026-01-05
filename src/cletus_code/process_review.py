@@ -301,6 +301,7 @@ def build_markdown(
     data: dict[str, Any],
     validation_errors: list[str],
     automation_note: str | None = None,
+    automerged: bool | None = None,
 ) -> str:
     """Build markdown output from review data with error handling."""
     logger.info("Building markdown output from review data")
@@ -521,6 +522,7 @@ def build_markdown(
             finding_groups=finding_groups,
             validation_errors=validation_errors,
             automation_note=automation_note,
+            automerged=automerged,
         )
 
         result = rendered.strip() + "\n"
@@ -1131,23 +1133,16 @@ def main(argv: Optional[list[str]] = None) -> None:
 
         skip_merge = _should_skip_merge()
         automation_note = None
+        automerged = False
         approved = bool(data.get("approved"))
-        if skip_merge:
-            automation_note = (
-                "Auto-merge skipped for this run; verdict above reflects the automated decision."
-            )
-        elif not auto_merge_allowed:
-            if approved and not validation_errors:
-                automation_note = (
-                    f"Auto-merge disabled ({auto_merge_reason}); verdict above reflects what would have been approved."
-                )
-            else:
-                automation_note = f"Auto-merge disabled ({auto_merge_reason})."
 
-        # Build markdown output
+        # Determine automerge status and build markdown
+        will_automerge = not skip_merge and not validation_errors and approved and auto_merge_allowed
+
+        # Build markdown output (before PR operations so we can include automerge status)
         logger.info("Building markdown output")
         try:
-            markdown = build_markdown(data, validation_errors, automation_note)
+            markdown = build_markdown(data, validation_errors, automation_note, will_automerge)
             if not markdown or not markdown.strip():
                 logger.warning("Generated markdown is empty")
         except Exception as exc:
@@ -1173,7 +1168,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             logger.error(f"Failed to apply labels: {exc}")
             raise ValueError(f"failed to apply labels: {exc}") from exc
 
-        # Publish comment
+        # Publish comment (single comment with all info including automerge status)
         logger.info("Publishing review comment")
         try:
             publish_comment(pr, markdown)
@@ -1184,10 +1179,11 @@ def main(argv: Optional[list[str]] = None) -> None:
         # Approve and merge if conditions are met
         if skip_merge:
             logger.info("Skipping approval/merge due to review replay mode")
-        elif not validation_errors and approved and auto_merge_allowed:
+        elif will_automerge:
             logger.info("Review is approved and validation passed, attempting to approve and merge PR")
             try:
                 approve_and_merge(pr)
+                automerged = True
             except Exception as exc:
                 logger.error(f"Failed to approve and merge PR: {exc}")
                 raise ValueError(f"failed to approve and merge PR: {exc}") from exc
