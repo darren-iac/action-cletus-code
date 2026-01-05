@@ -3,8 +3,9 @@ name: Review GitHub Actions Workflows
 on:
   pull_request:
     paths:
-      - '.github/workflows/**.yml'
-      - '.github/workflows/**.yaml'
+      - '.github/workflows/re-review-pr.yml'
+      - '.github/workflows/test-*.yml'
+      - '.github/workflows/release.yml'
       - 'action.yml'
   workflow_dispatch:
 
@@ -21,15 +22,28 @@ jobs:
     name: Review Workflow Changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Generate GitHub App Token
+        id: app-token
+        if: vars.APP_ID != ''
+        uses: actions/create-github-app-token@bf559f85448f9380bcfa2899dbdc01eb5b37be3a # v3.0.0-beta.2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Get Changed Workflow Files
         id: changed-files
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           script: |
             const { data: files } = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
@@ -51,6 +65,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-app-token: ${{ steps.app-token.outputs.token }}
           changed-files: ${{ steps.changed-files.outputs.files }}
           # Use multiple skills: local GitHub Actions reviewer + built-in PR toolkit
           skills: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
