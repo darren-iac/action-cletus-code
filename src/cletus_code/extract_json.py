@@ -22,21 +22,45 @@ def main():
         print(f"Error: Execution file not found: {execution_file}", file=sys.stderr)
         sys.exit(1)
 
-    content = execution_file.read_text()
+    # Read and parse the execution file (which is in JSON format)
+    execution_data = json.loads(execution_file.read_text())
 
-    # Try to find a JSON object in the content
-    # Look for content between ```json and ``` markers
-    json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-    if json_match:
-        json_str = json_match.group(1)
-    else:
-        # Try to find a raw JSON object
-        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-        else:
-            print("Error: Could not find JSON in Claude output", file=sys.stderr)
-            sys.exit(1)
+    # The execution file contains the full conversation history
+    # We need to find the last assistant message that contains our JSON
+    # Look for messages with content type "text" that contain ```json blocks
+    json_str = None
+
+    # Navigate through the execution structure to find messages
+    # The structure is typically: root -> messages -> content -> text
+    if "messages" in execution_data:
+        messages = execution_data["messages"]
+        # Search in reverse to find the last assistant message with JSON
+        for msg in reversed(messages):
+            if msg.get("role") == "assistant":
+                for content_item in msg.get("content", []):
+                    if content_item.get("type") == "text":
+                        text = content_item.get("text", "")
+                        # Look for ```json code blocks
+                        match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+                        if match:
+                            json_str = match.group(1)
+                            break
+                if json_str:
+                    break
+
+    # Also check the "result" field which might contain the final output
+    if not json_str and "result" in execution_data:
+        result = execution_data["result"]
+        if isinstance(result, str):
+            match = re.search(r'```json\s*(\{.*?\})\s*```', result, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+
+    if not json_str:
+        print("Error: Could not find JSON in Claude execution output", file=sys.stderr)
+        # Print some debug info
+        print(f"Execution data keys: {list(execution_data.keys())}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         data = json.loads(json_str)
@@ -50,3 +74,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
