@@ -881,7 +881,9 @@ def apply_labels(pr: PullRequest, labels: dict[str, str]) -> None:
 def publish_comment(pr: PullRequest, markdown: str) -> None:
     """Publish comment to pull request with error handling and retry logic.
 
-    Updates existing bot comment if found, otherwise creates a new one.
+    Only posts a comment if no bot comment already exists on the PR.
+    This ensures exactly one comment per review cycle, even if multiple
+    workflows run concurrently.
     """
     if not markdown or not markdown.strip():
         logger.warning("Empty markdown content, skipping comment publication")
@@ -894,38 +896,27 @@ def publish_comment(pr: PullRequest, markdown: str) -> None:
         logger.warning(f"Comment too long ({len(markdown)} chars), truncating to 65536")
         markdown = markdown[:65536] + "\n\n... (truncated due to length)"
 
-    # Look for existing bot comment to update
-    existing_comment_id = None
+    # Check if any bot comment already exists - if so, skip posting
     try:
         comments = pr.get_issue_comments()
-        comment_count = 0
         for comment in comments:
-            comment_count += 1
-            logger.info(f"Checking comment {comment.id}: user={comment.user.login}, type={comment.user.type}, has_code_review={'Code Review' in comment.body}")
-            if comment.user.type == "Bot" and "Code Review" in comment.body:
-                existing_comment_id = comment.id
-                logger.info(f"Found existing bot comment to update: {existing_comment_id}")
-                break
-        logger.info(f"Checked {comment_count} comments for existing 'Code Review' bot comment")
+            if comment.user.type == "Bot":
+                logger.info(f"Bot comment already exists (ID: {comment.id}), skipping post to ensure only one comment per review cycle")
+                return
+        logger.info("No existing bot comments found, proceeding to post comment")
     except Exception as exc:
         logger.warning(f"Could not check for existing comments: {exc}")
-        # Continue to create new comment
+        # Continue to attempt posting
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            if existing_comment_id:
-                logger.debug(f"Updating comment {existing_comment_id} (attempt {attempt + 1}/{max_retries})")
-                comment = pr.get_issue_comment(existing_comment_id)
-                comment.edit(markdown)
-                logger.info(f"Successfully updated comment (ID: {existing_comment_id})")
+            logger.debug(f"Creating comment (attempt {attempt + 1}/{max_retries})")
+            comment = pr.create_issue_comment(markdown)
+            if hasattr(comment, 'id'):
+                logger.info(f"Successfully created new comment (ID: {comment.id})")
             else:
-                logger.debug(f"Creating comment (attempt {attempt + 1}/{max_retries})")
-                comment = pr.create_issue_comment(markdown)
-                if hasattr(comment, 'id'):
-                    logger.info(f"Successfully created new comment (ID: {comment.id})")
-                else:
-                    logger.info("Successfully published comment")
+                logger.info("Successfully published comment")
             return
         except GithubException as exc:
             logger.warning(f"GitHub API error (attempt {attempt + 1}/{max_retries}): {exc}")
