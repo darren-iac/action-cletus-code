@@ -1,5 +1,5 @@
 name: 'Cletus Code Review'
-description: 'AI-powered pull request review with plugin support and auto-merge capabilities'
+description: 'AI-powered pull request review with plugin support, structured output, and auto-merge capabilities'
 branding:
   icon: 'eye'
   color: 'purple'
