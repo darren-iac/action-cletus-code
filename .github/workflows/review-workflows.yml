@@ -1,0 +1,131 @@
+name: Review GitHub Actions Workflows
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**.yml'
+      - '.github/workflows/**.yaml'
+      - 'action.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review-workflows:
+    name: Review Workflow Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bb5b1739b1e4a4e4b5b5c2f0b9b4b4b
+
+      - name: Get Changed Workflow Files
+        id: changed-files
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            const workflowFiles = files
+              .filter(f => f.status === 'modified' || f.status === 'added' || f.status === 'renamed')
+              .filter(f => f.filename.match(/^\.github\/workflows\/.*\.ya?ml$|action\.yml$/))
+              .map(f => f.filename);
+
+            core.setOutput('files', JSON.stringify(workflowFiles));
+            core.setOutput('count', workflowFiles.length.toString());
+            console.log(`Found ${workflowFiles.length} workflow files to review`);
+
+      - name: Run GitHub Actions Reviewer
+        if: steps.changed-files.outputs.count != '0'
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-files: ${{ steps.changed-files.outputs.files }}
+          # Use multiple skills: local GitHub Actions reviewer + built-in PR toolkit
+          skills: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-args: '--dangerously-skip-permissions'
+
+      - name: Comment PR with Review
+        if: steps.changed-files.outputs.count != '0'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            let commentBody = '## 🔍 GitHub Actions Workflow Review\n\n';
+
+            try {
+              const reviewPath = 'output/review.json';
+              if (fs.existsSync(reviewPath)) {
+                const review = JSON.parse(fs.readFileSync(reviewPath, 'utf8'));
+
+                if (review.summary) {
+                  commentBody += `**Summary:** ${review.summary}\n\n`;
+                }
+
+                if (review.issues && review.issues.length > 0) {
+                  commentBody += '### Issues Found\n\n';
+                  review.issues.forEach((issue, idx) => {
+                    const emoji = issue.severity === 'critical' ? '🚨' :
+                                issue.severity === 'high' ? '⚠️' :
+                                issue.severity === 'medium' ? '📋' : '💡';
+                    commentBody += `${emoji} **${issue.title}** (${issue.severity})\n`;
+                    if (issue.file) {
+                      commentBody += `- File: \`${issue.file}\`${issue.line ? `:${issue.line}` : ''}\n`;
+                    }
+                    if (issue.suggestion) {
+                      commentBody += `- Suggestion: ${issue.suggestion}\n`;
+                    }
+                    commentBody += '\n';
+                  });
+                } else {
+                  commentBody += '✅ No issues found! Workflows look good.\n\n';
+                }
+              }
+            } catch (error) {
+              commentBody += `⚠️ Could not parse review results: ${error.message}\n`;
+            }
+
+            commentBody += '\n---\n';
+            commentBody += '*This review was generated using the `github-actions-reviewer` skill.*';
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('GitHub Actions Workflow Review')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }

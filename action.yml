@@ -14,8 +14,12 @@ inputs:
     description: 'JSON array of changed file paths from changed-files action'
     required: true
 
-  skill:
-    description: 'Specific review skill to use (default: auto-detect from repo)'
+  skills:
+    description: 'Array of review skills to use. Formats: local:skill-name, owner/repo:ref:skill-path, url:https://..., builtin:name'
+    required: false
+
+  extra-skills:
+    description: 'Additional skills to include alongside defaults (JSON array string)'
     required: false
 
   output-dir:
@@ -63,7 +67,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         CHANGED_FILES: ${{ inputs.changed-files }}
-        CLETUS_SKILL: ${{ inputs.skill }}
+        CLETUS_SKILLS: ${{ inputs.skills }}
+        CLETUS_EXTRA_SKILLS: ${{ inputs.extra-skills }}
         OUTPUT_DIR: ${{ inputs.output-dir }}
         REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
       run: |
@@ -71,7 +76,8 @@ runs:
         cd ${{ github.action_path }}
         uv run --python 3.13 -m cletus_code.run_review \
           --changed-files '${{ inputs.changed-files }}' \
-          ${{ inputs.skill != '' && format('--skill {0}', inputs.skill) || '' }} \
+          ${{ inputs.skills != '' && format('--skills-json {0}', inputs.skills) || '' }} \
+          ${{ inputs.extra-skills != '' && format('--extra-skills {0}', inputs.extra-skills) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
     # Run Claude Code with the generated prompt
