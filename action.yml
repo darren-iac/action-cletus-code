@@ -84,10 +84,10 @@ runs:
           ${{ inputs.extra-skills != '' && format('--extra-skills ''{0}''', inputs.extra-skills) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
-    # Run Claude Code with the generated prompt
-    # The prompt itself will instruct Claude to output JSON
-    - name: Run Claude Code
-      id: claude-review
+    # Run Claude Code for review analysis
+    # This step performs the actual code review and analysis
+    - name: Run review analysis
+      id: claude-analysis
       uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
       with:
         prompt_file: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
@@ -99,19 +99,37 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
 
-    # Extract JSON from Claude's output and write to review.json
-    - name: Write review.json from Claude output
+    # Run Claude Code again to generate structured JSON output
+    # This is a dedicated step that uses the structured output skill
+    # to produce pure JSON without markdown fences or extra text
+    - name: Generate structured review JSON
+      id: claude-structured
+      uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
+      with:
+        prompt_file: ${{ github.action_path }}/${{ inputs.output-dir }}/structured-review-prompt.md
+        anthropic_api_key: ${{ inputs.anthropic-api-key }}
+        claude_args: ${{ inputs.claude-args }}
+        settings: ${{ inputs.settings }}
+        show_full_output: 'true'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        CLETUS_STRUCTURED_OUTPUT_FILE: ${{ github.action_path }}/${{ inputs.output-dir }}/review.json
+
+    # Validate the structured output
+    # This is a stop hook that ensures review.json is well-formed
+    # and contains all required fields before proceeding
+    - name: Validate structured output
       shell: bash
       run: |
         set -e
-        OUTPUT_DIR="${{ github.action_path }}/${{ inputs.output-dir }}"
-        EXECUTION_FILE="${{ steps.claude-review.outputs.execution_file }}"
-        if [ -f "$EXECUTION_FILE" ]; then
-          python3 "${{ github.action_path }}/src/cletus_code/extract_json.py" "$EXECUTION_FILE" "$OUTPUT_DIR/review.json"
-        else
-          echo "Error: Execution file not found at $EXECUTION_FILE"
-          exit 1
-        fi
+        export PATH="$HOME/.local/bin:$PATH"
+        cd ${{ github.action_path }}
+
+        # Run the validator
+        uv run --python 3.13 -m cletus_code.validate_json \
+          "${{ inputs.output-dir }}/review.json" \
+          "${{ inputs.output-dir }}/review-schema.json"
 
     # Process and publish the review results
     - name: Process review results

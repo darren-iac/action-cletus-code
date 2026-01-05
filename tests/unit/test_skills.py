@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 
-from cletus_code.skills import SkillLoader, DEFAULT_GENERAL_SKILL
+from cletus_code.skills import SkillLoader, DEFAULT_PR_REVIEW_SKILL
 
 
 class TestDefaultGeneralSkill:
@@ -12,16 +12,16 @@ class TestDefaultGeneralSkill:
 
     def test_default_skill_exists(self):
         """Test that the default skill is defined."""
-        assert DEFAULT_GENERAL_SKILL is not None
-        assert isinstance(DEFAULT_GENERAL_SKILL, str)
-        assert len(DEFAULT_GENERAL_SKILL) > 0
+        assert DEFAULT_PR_REVIEW_SKILL is not None
+        assert isinstance(DEFAULT_PR_REVIEW_SKILL, str)
+        assert len(DEFAULT_PR_REVIEW_SKILL) > 0
 
     def test_default_skill_contains_key_sections(self):
         """Test that the default skill contains expected sections."""
-        skill = DEFAULT_GENERAL_SKILL
+        skill = DEFAULT_PR_REVIEW_SKILL
 
-        # Check for key sections - note that the heading uses "5. **Output Format**:" not "## Output Format"
-        assert "# General Code Review" in skill
+        # Check for key sections
+        assert "Pull Request Review Toolkit" in skill
         assert "Output Format" in skill
         assert '"approved"' in skill
         assert '"overallRisk"' in skill
@@ -29,7 +29,7 @@ class TestDefaultGeneralSkill:
 
     def test_default_skill_mentions_json_schema(self):
         """Test that the default skill specifies JSON output format."""
-        skill = DEFAULT_GENERAL_SKILL
+        skill = DEFAULT_PR_REVIEW_SKILL
         assert "JSON" in skill
         assert "approved" in skill
         assert "LOW" in skill or "MEDIUM" in skill or "HIGH" in skill
@@ -59,7 +59,7 @@ class TestSkillLoader:
             skill = loader.load_skill()
 
             # Should fall back to default
-            assert skill == DEFAULT_GENERAL_SKILL
+            assert skill == DEFAULT_PR_REVIEW_SKILL
 
     def test_load_explicit_skill(
         self,

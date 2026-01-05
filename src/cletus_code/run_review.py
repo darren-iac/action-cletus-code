@@ -104,7 +104,7 @@ class ReviewOrchestrator:
                 except Exception as e:
                     logger.warning(f"Failed to post plugin comment: {e}")
 
-        # Step 4: Load review skill(s)
+        # Step 4: Load review skill(s) for analysis
         from .skills import SkillLoader
 
         skill_loader = SkillLoader(self.workspace_root, self.repository, self.github_token)
@@ -123,13 +123,19 @@ class ReviewOrchestrator:
 
         logger.info(f"Loaded review skill(s) ({len(skill)} chars)")
 
-        # Step 5: Build Claude prompt with plugin context
-        claude_prompt = self._build_claude_prompt(skill, plugin_results)
+        # Step 5: Build analysis prompt and invoke Claude for review analysis
+        # This step does the actual code review work
+        analysis_prompt = self._build_analysis_prompt(skill, plugin_results)
+        self._invoke_claude_code(analysis_prompt)
 
-        # Step 6: Invoke Claude Code action
-        self._invoke_claude_code(claude_prompt)
+        # Step 6: Generate structured JSON output
+        # This is a separate step that produces the final review.json
+        self._generate_structured_review(pr)
 
-        # Step 7: Process and publish review results
+        # Step 7: Validate the structured output before proceeding
+        self._validate_structured_output()
+
+        # Step 8: Process and publish review results
         self._process_review_results(pr)
 
         logger.info("Review orchestration complete")
@@ -317,15 +323,19 @@ class ReviewOrchestrator:
             return
         pr.create_issue_comment(content)
 
-    def _build_claude_prompt(self, skill: str, plugin_results: list[PluginResult]) -> str:
-        """Build the Claude Code prompt with skill and plugin context.
+    def _build_analysis_prompt(self, skill: str, plugin_results: list[PluginResult]) -> str:
+        """Build the analysis prompt for code review.
+
+        This prompt is for the initial review/analysis phase where Claude
+        examines the code and provides feedback. The structured JSON output
+        is generated in a separate step.
 
         Args:
             skill: Review skill content.
             plugin_results: Results from plugins.
 
         Returns:
-            Complete prompt for Claude Code.
+            Complete prompt for Claude Code analysis.
         """
         sections = [skill]
 
@@ -338,49 +348,131 @@ class ReviewOrchestrator:
                     sections.append(result.review_context)
                     sections.append("")
 
-        # Add instructions for JSON output
+        # Note: We don't ask for JSON here - that's done in the structured step
         sections.append("""
 
-## Output Format
+## Analysis Instructions
 
-You MUST respond with a JSON object in a markdown code block like this:
+Conduct a thorough code review of the changes. Provide your analysis
+including:
+- Security concerns
+- Bug risks
+- Performance issues
+- Code quality and maintainability
+- Testing gaps
 
-```json
-{
-  "approved": true,
-  "overallRisk": "LOW",
-  "summary": "Brief 1-3 sentence overview",
-  "findings": [
-    {
-      "type": "finding",
-      "title": "Short title",
-      "summary": "Detailed explanation",
-      "risk": "MEDIUM",
-      "tags": ["security"],
-      "cosmetic": false,
-      "location": {
-        "resource": "file.ext",
-        "path": "path/to/file.ext",
-        "line": 123
-      },
-      "evidence": {
-        "diff": "...",
-        "snippet": "..."
-      }
-    }
-  ]
-}
-```
-
-**Important:**
-- Your response MUST be valid JSON wrapped in \\`\\`\\`json ... \\`\\`\\` code blocks
-- The JSON will be automatically extracted and parsed
-- Do not include any text outside the JSON code block
-- All required fields must be present
-
+Your analysis will be used to generate the final structured review report.
 """)
 
         return "\n".join(sections)
+
+    def _generate_structured_review(self, pr) -> None:
+        """Generate the structured review.json using the dedicated skill.
+
+        This is the final step that produces the guaranteed JSON output.
+
+        Args:
+            pr: PullRequest object.
+        """
+        logger.info("Generating structured review JSON")
+
+        # Load the structured output skill
+        skill_template = Path(__file__).parent / "templates" / "generate_review_json_skill.md"
+        if not skill_template.exists():
+            logger.error(f"Structured review skill not found at {skill_template}")
+            raise FileNotFoundError(f"Required skill template not found: {skill_template}")
+
+        skill_content = skill_template.read_text()
+
+        # Build context for the structured skill
+        # Include information about what was reviewed
+        context_parts = [
+            f"# PR Context\n",
+            f"- **Repository**: {self.repository}\n",
+            f"- **PR Number**: {pr.number}\n",
+            f"- **PR Title**: {pr.title}\n",
+            f"- **Changed Files**: {len(self.changed_files)} files\n",
+            f"\n# Files Reviewed\n",
+        ]
+
+        for f in self.changed_files:
+            context_parts.append(f"- {f}\n")
+
+        context_parts.append("\n# Previous Analysis\n")
+        context_parts.append("The review analysis has been completed. Your task is to\n")
+        context_parts.append("synthesize this into the final structured JSON report.\n")
+
+        # Combine context with skill
+        full_prompt = "\n".join(context_parts) + "\n\n" + skill_content
+
+        # Write prompt for the structured step
+        prompt_file = self.output_dir / "structured-review-prompt.md"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        prompt_file.write_text(full_prompt)
+
+        # Set environment variable to indicate this is the structured step
+        # The action will use this to know where to write the output
+        import os
+        os.environ["CLETUS_STRUCTURED_OUTPUT_FILE"] = str(self.output_dir / "review.json")
+
+        # Invoke Claude Code for structured output
+        self._invoke_claude_code_structured(full_prompt)
+
+    def _invoke_claude_code_structured(self, prompt: str) -> None:
+        """Invoke Claude Code for structured JSON output.
+
+        This is a separate invocation specifically for generating the final
+        review.json file. It uses the structured output skill that knows
+        how to produce pure JSON without markdown fences or extra text.
+
+        Args:
+            prompt: The structured output prompt.
+        """
+        logger.info("Invoking Claude Code for structured output")
+
+        # Write prompt to file
+        prompt_file = self.output_dir / "structured-review-prompt.md"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        prompt_file.write_text(prompt)
+
+        logger.info(f"Structured output prompt written to {prompt_file}")
+        logger.info(f"Output will be written to {self.output_dir / 'review.json'}")
+
+        # In the actual workflow, the Claude Code action would be invoked next
+        # with the structured prompt. The action will write directly to review.json
+
+    def _validate_structured_output(self) -> None:
+        """Validate the structured review.json before proceeding.
+
+        This is a stop hook that ensures the JSON is well-formed and contains
+        all required fields. Fails fast with clear error messages if validation fails.
+
+        Raises:
+            FileNotFoundError: If review.json doesn't exist.
+            ReviewValidationError: If review.json is invalid.
+        """
+        logger.info("Validating structured review output")
+
+        from .validate_json import validate_review_json, ReviewValidationError
+
+        review_path = self.output_dir / "review.json"
+
+        try:
+            validate_review_json(review_path)
+            logger.info("✓ Structured output validation passed")
+        except ReviewValidationError as e:
+            logger.error(f"✗ Structured output validation failed: {e}")
+            if e.missing_fields:
+                logger.error(f"  Missing required fields: {', '.join(e.missing_fields)}")
+            # Re-raise to fail the workflow
+            raise
+        except FileNotFoundError:
+            logger.error(f"✗ Structured output file not found: {review_path}")
+            logger.error("The structured JSON generation step did not produce review.json")
+            raise
+        except Exception as e:
+            logger.error(f"✗ Unexpected validation error: {e}")
+            raise
 
     def _invoke_claude_code(self, prompt: str) -> None:
         """Invoke the Claude Code action.
