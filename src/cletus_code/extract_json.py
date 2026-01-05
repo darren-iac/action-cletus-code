@@ -22,44 +22,51 @@ def main():
         print(f"Error: Execution file not found: {execution_file}", file=sys.stderr)
         sys.exit(1)
 
-    # Read and parse the execution file (which is in JSON format)
-    execution_data = json.loads(execution_file.read_text())
+    # Read the execution file content
+    content = execution_file.read_text()
 
-    # The execution file contains the full conversation history
-    # We need to find the last assistant message that contains our JSON
-    # Look for messages with content type "text" that contain ```json blocks
+    # The execution file might be:
+    # 1. A JSON object with conversation history
+    # 2. A JSON array of messages
+    # 3. Raw text with markdown
+
     json_str = None
 
-    # Navigate through the execution structure to find messages
-    # The structure is typically: root -> messages -> content -> text
-    if "messages" in execution_data:
-        messages = execution_data["messages"]
-        # Search in reverse to find the last assistant message with JSON
-        for msg in reversed(messages):
-            if msg.get("role") == "assistant":
-                for content_item in msg.get("content", []):
-                    if content_item.get("type") == "text":
-                        text = content_item.get("text", "")
-                        # Look for ```json code blocks
-                        match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
-                        if match:
-                            json_str = match.group(1)
-                            break
+    # Try to parse as JSON first
+    try:
+        execution_data = json.loads(content)
+
+        # If it's a list, look through each item
+        if isinstance(execution_data, list):
+            for item in reversed(execution_data):
+                json_str = _extract_from_item(item)
                 if json_str:
                     break
+        # If it's a dict with messages
+        elif isinstance(execution_data, dict):
+            if "messages" in execution_data:
+                messages = execution_data["messages"]
+                for msg in reversed(messages):
+                    if msg.get("role") == "assistant":
+                        json_str = _extract_from_item(msg)
+                        if json_str:
+                            break
+            # Check for result field
+            if not json_str and "result" in execution_data:
+                result = execution_data["result"]
+                if isinstance(result, str):
+                    match = re.search(r'```json\s*(\{.*?\})\s*```', result, re.DOTALL)
+                    if match:
+                        json_str = match.group(1)
 
-    # Also check the "result" field which might contain the final output
-    if not json_str and "result" in execution_data:
-        result = execution_data["result"]
-        if isinstance(result, str):
-            match = re.search(r'```json\s*(\{.*?\})\s*```', result, re.DOTALL)
-            if match:
-                json_str = match.group(1)
+    except json.JSONDecodeError:
+        # Not JSON, treat as raw text
+        match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
+        if match:
+            json_str = match.group(1)
 
     if not json_str:
         print("Error: Could not find JSON in Claude execution output", file=sys.stderr)
-        # Print some debug info
-        print(f"Execution data keys: {list(execution_data.keys())}", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -70,6 +77,41 @@ def main():
         print(f"Error: Invalid JSON: {e}", file=sys.stderr)
         print(f"JSON string was: {json_str[:500]}...", file=sys.stderr)
         sys.exit(1)
+
+
+def _extract_from_item(item):
+    """Extract JSON from a message/item structure.
+
+    Args:
+        item: A dict representing a message or content item.
+
+    Returns:
+        JSON string if found, None otherwise.
+    """
+    if not isinstance(item, dict):
+        return None
+
+    # Check if this has content array
+    if "content" in item:
+        content = item["content"]
+        if isinstance(content, list):
+            for content_item in content:
+                if content_item.get("type") == "text":
+                    text = content_item.get("text", "")
+                    match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+                    if match:
+                        return match.group(1)
+        elif isinstance(content, str):
+            match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
+            if match:
+                return match.group(1)
+
+    # Check for direct message field
+    if "message" in item:
+        message = item["message"]
+        return _extract_from_item(message)
+
+    return None
 
 
 if __name__ == "__main__":
