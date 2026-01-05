@@ -132,10 +132,8 @@ class ReviewOrchestrator:
         # This is a separate step that produces the final review.json
         self._generate_structured_review(pr)
 
-        # Step 7: Validate the structured output before proceeding
-        self._validate_structured_output()
-
-        # Step 8: Process and publish review results
+        # Note: Validation happens in action.yml after Claude Code runs
+        # Step 7: Process and publish review results
         self._process_review_results(pr)
 
         logger.info("Review orchestration complete")
@@ -440,39 +438,6 @@ Your analysis will be used to generate the final structured review report.
 
         # In the actual workflow, the Claude Code action would be invoked next
         # with the structured prompt. The action will write directly to review.json
-
-    def _validate_structured_output(self) -> None:
-        """Validate the structured review.json before proceeding.
-
-        This is a stop hook that ensures the JSON is well-formed and contains
-        all required fields. Fails fast with clear error messages if validation fails.
-
-        Raises:
-            FileNotFoundError: If review.json doesn't exist.
-            ReviewValidationError: If review.json is invalid.
-        """
-        logger.info("Validating structured review output")
-
-        from .validate_json import validate_review_json, ReviewValidationError
-
-        review_path = self.output_dir / "review.json"
-
-        try:
-            validate_review_json(review_path)
-            logger.info("✓ Structured output validation passed")
-        except ReviewValidationError as e:
-            logger.error(f"✗ Structured output validation failed: {e}")
-            if e.missing_fields:
-                logger.error(f"  Missing required fields: {', '.join(e.missing_fields)}")
-            # Re-raise to fail the workflow
-            raise
-        except FileNotFoundError:
-            logger.error(f"✗ Structured output file not found: {review_path}")
-            logger.error("The structured JSON generation step did not produce review.json")
-            raise
-        except Exception as e:
-            logger.error(f"✗ Unexpected validation error: {e}")
-            raise
 
     def _invoke_claude_code(self, prompt: str) -> None:
         """Invoke the Claude Code action.
