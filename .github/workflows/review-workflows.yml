@@ -3,10 +3,10 @@ name: Review GitHub Actions Workflows
 on:
   pull_request:
     paths:
-      - '.github/workflows/re-review-pr.yml'
-      - '.github/workflows/test-*.yml'
-      - '.github/workflows/release.yml'
-      - 'action.yml'
+      - '.github/workflows/**'
+    paths-ignore:
+      - '.github/workflows/self-review.yml'
+      - '.github/workflows/review-workflows.yml'
   workflow_dispatch:
 
 permissions:
@@ -53,7 +53,8 @@ jobs:
 
             const workflowFiles = files
               .filter(f => f.status === 'modified' || f.status === 'added' || f.status === 'renamed')
-              .filter(f => f.filename.match(/^\.github\/workflows\/.*\.ya?ml$|action\.yml$/))
+              .filter(f => f.filename.match(/^\.github\/workflows\/.*\.ya?ml$/))
+              .filter(f => !f.filename.match(/\/(self-review|review-workflows)\.yml$/))
               .map(f => f.filename);
 
             core.setOutput('files', JSON.stringify(workflowFiles));
