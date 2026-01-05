@@ -6,9 +6,13 @@ branding:
 
 inputs:
   github-token:
-    description: 'GitHub token for API access'
+    description: 'GitHub token for API access (defaults to github.token, but GITHUB_APP_TOKEN is recommended for custom app identity)'
     required: true
     default: ${{ github.token }}
+
+  github-app-token:
+    description: 'GitHub App token for using custom app identity (e.g., "Cletus Code" app). If provided, this takes precedence over github-token.'
+    required: false
 
   changed-files:
     description: 'JSON array of changed file paths from changed-files action'
@@ -65,7 +69,7 @@ runs:
     - name: Run review orchestrator
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
         CHANGED_FILES: ${{ inputs.changed-files }}
         CLETUS_SKILLS: ${{ inputs.skills }}
         CLETUS_EXTRA_SKILLS: ${{ inputs.extra-skills }}
@@ -115,7 +119,7 @@ runs:
         settings: ${{ inputs.settings }}
         show_full_output: 'true'
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
 
     # Extract structured output and write to review.json
@@ -151,7 +155,7 @@ runs:
     - name: Process review results
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
         OUTPUT_DIR: ${{ inputs.output-dir }}
         REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
       run: |

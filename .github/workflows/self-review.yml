@@ -51,6 +51,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-app-token: ${{ secrets.CLETUS_CODE_APP_TOKEN }}
           changed-files: ${{ steps.changed-files.outputs.files }}
           skills: '["builtin:pr-review-toolkit"]'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

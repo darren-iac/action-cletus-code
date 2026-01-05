@@ -52,6 +52,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-app-token: ${{ secrets.CLETUS_CODE_APP_TOKEN }}
           changed-files: ${{ steps.changed-files.outputs.files }}
           # Use multiple skills: local GitHub Actions reviewer + built-in PR toolkit
           skills: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
