@@ -1,4 +1,7 @@
-"""Configuration loader for process_review."""
+"""Configuration loader for process_review.
+
+Final verification test - this change triggers self-review.yml.
+"""
 
 from copy import deepcopy
 import logging
