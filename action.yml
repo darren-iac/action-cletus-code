@@ -123,13 +123,14 @@ runs:
       shell: bash
       run: |
         # Get the structured_output from the previous step
+        # Use printf to avoid issues with special characters in JSON
         OUTPUT='${{ steps.claude-review.outputs.structured_output }}'
 
         # Check if structured_output exists and is not empty
         if [ -n "$OUTPUT" ] && [ "$OUTPUT" != "null" ]; then
           echo "Writing structured output to review.json"
           mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
-          echo "$OUTPUT" > "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
+          printf '%s' "$OUTPUT" > "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
           echo "Successfully wrote review.json"
         else
           echo "Warning: structured_output is empty or not available"
