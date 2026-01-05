@@ -3,8 +3,10 @@ name: Review GitHub Actions Workflows
 on:
   pull_request:
     paths:
-      - '.github/workflows/**.yml'
-      - '.github/workflows/**.yaml'
+      - '.github/workflows/review-workflows.yml'
+      - '.github/workflows/re-review-pr.yml'
+      - '.github/workflows/test-*.yml'
+      - '.github/workflows/release.yml'
       - 'action.yml'
   workflow_dispatch:
 
