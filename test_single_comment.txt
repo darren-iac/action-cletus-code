@@ -1,0 +1,7 @@
+Test file to trigger both workflows and verify only one comment is posted.
+
+This change triggers:
+1. self-review.yml (because we're modifying a src/ file)
+2. review-workflows.yml (because we're modifying a .github/workflows/ file)
+
+Expected result: Only ONE bot comment should be posted on the PR.

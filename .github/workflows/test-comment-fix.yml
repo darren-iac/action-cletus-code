@@ -1,0 +1,15 @@
+name: Test Comment Fix
+
+# This workflow is used to trigger review-workflows.yml
+# to verify that only ONE comment is posted per review cycle.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Test workflow to trigger review-workflows.yml"

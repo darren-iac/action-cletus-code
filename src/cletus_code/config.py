@@ -1,4 +1,8 @@
-"""Configuration loader for process_review."""
+"""Configuration loader for process_review.
+
+Note: This file change triggers both self-review.yml and review-workflows.yml
+to verify that only ONE comment is posted per review cycle.
+"""
 
 from copy import deepcopy
 import logging
