@@ -121,12 +121,14 @@ runs:
     # Extract structured output and write to review.json
     - name: Write review.json from structured output
       shell: pwsh
+      env:
+        STRUCTURED_OUTPUT: ${{ steps.claude-review.outputs.structured_output }}
       run: |
-        # PowerShell handles special characters in JSON better than bash
+        # Use environment variable to avoid YAML parsing issues
         $outputDir = "${{ github.action_path }}/${{ inputs.output-dir }}"
         New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 
-        $structuredOutput = "${{ steps.claude-review.outputs.structured_output }}"
+        $structuredOutput = $env:STRUCTURED_OUTPUT
 
         if (-not [string]::IsNullOrWhiteSpace($structuredOutput)) {
           $structuredOutput | Out-File -FilePath "$outputDir/review.json" -Encoding utf8
