@@ -338,27 +338,45 @@ class ReviewOrchestrator:
                     sections.append(result.review_context)
                     sections.append("")
 
-        # Add instructions for structured output
+        # Add instructions for JSON output
         sections.append("""
 
 ## Output Format
 
-Your review will be captured using a **structured JSON output** system. Provide a comprehensive review following this structure:
+You MUST respond with a JSON object in a markdown code block like this:
 
-1. **approved** (boolean): Should this PR be merged?
-2. **overallRisk** (string): CRITICAL, HIGH, MEDIUM, LOW, or NEGLIGIBLE
-3. **summary** (string): 1-3 sentence overview of the review
-4. **findings** (array): List of specific findings, each containing:
-   - **type** (string): "finding", "version", or "resource"
-   - **title** (string): Short, descriptive title
-   - **summary** (string): Detailed explanation
-   - **risk** (string): CRITICAL, HIGH, MEDIUM, LOW, or NEGLIGIBLE
-   - **tags** (array, optional): e.g., ["security", "performance"]
-   - **cosmetic** (boolean, optional): True if stylistic only
-   - **location** (object, optional): {"resource": "...", "path": "...", "line": 123}
-   - **evidence** (object, optional): {"diff": "...", "snippet": "..."}
+```json
+{
+  "approved": true,
+  "overallRisk": "LOW",
+  "summary": "Brief 1-3 sentence overview",
+  "findings": [
+    {
+      "type": "finding",
+      "title": "Short title",
+      "summary": "Detailed explanation",
+      "risk": "MEDIUM",
+      "tags": ["security"],
+      "cosmetic": false,
+      "location": {
+        "resource": "file.ext",
+        "path": "path/to/file.ext",
+        "line": 123
+      },
+      "evidence": {
+        "diff": "...",
+        "snippet": "..."
+      }
+    }
+  ]
+}
+```
 
-The structured output system will automatically format your response according to the JSON schema provided.
+**Important:**
+- Your response MUST be valid JSON wrapped in \\`\\`\\`json ... \\`\\`\\` code blocks
+- The JSON will be automatically extracted and parsed
+- Do not include any text outside the JSON code block
+- All required fields must be present
 
 """)
 
