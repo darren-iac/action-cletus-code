@@ -1,0 +1,14 @@
+name: Clean Test Workflow
+
+# Triggers review-workflows.yml to test both workflows together
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Clean test workflow"
