@@ -879,7 +879,10 @@ def apply_labels(pr: PullRequest, labels: dict[str, str]) -> None:
 
 
 def publish_comment(pr: PullRequest, markdown: str) -> None:
-    """Publish comment to pull request with error handling and retry logic."""
+    """Publish comment to pull request with error handling and retry logic.
+
+    Updates existing bot comment if found, otherwise creates a new one.
+    """
     if not markdown or not markdown.strip():
         logger.warning("Empty markdown content, skipping comment publication")
         return
@@ -891,24 +894,43 @@ def publish_comment(pr: PullRequest, markdown: str) -> None:
         logger.warning(f"Comment too long ({len(markdown)} chars), truncating to 65536")
         markdown = markdown[:65536] + "\n\n... (truncated due to length)"
 
+    # Look for existing bot comment to update
+    existing_comment_id = None
+    try:
+        comments = pr.get_issue_comments()
+        for comment in comments:
+            if comment.user.type == "Bot" and "Code Review" in comment.body:
+                existing_comment_id = comment.id
+                logger.info(f"Found existing bot comment to update: {existing_comment_id}")
+                break
+    except Exception as exc:
+        logger.warning(f"Could not check for existing comments: {exc}")
+        # Continue to create new comment
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            logger.debug(f"Creating comment (attempt {attempt + 1}/{max_retries})")
-            comment = pr.create_issue_comment(markdown)
-            if hasattr(comment, 'id'):
-                logger.info(f"Successfully published comment (ID: {comment.id})")
+            if existing_comment_id:
+                logger.debug(f"Updating comment {existing_comment_id} (attempt {attempt + 1}/{max_retries})")
+                comment = pr.get_issue_comment(existing_comment_id)
+                comment.edit(markdown)
+                logger.info(f"Successfully updated comment (ID: {existing_comment_id})")
             else:
-                logger.info("Successfully published comment")
+                logger.debug(f"Creating comment (attempt {attempt + 1}/{max_retries})")
+                comment = pr.create_issue_comment(markdown)
+                if hasattr(comment, 'id'):
+                    logger.info(f"Successfully created new comment (ID: {comment.id})")
+                else:
+                    logger.info("Successfully published comment")
             return
         except GithubException as exc:
-            logger.warning(f"GitHub API error creating comment (attempt {attempt + 1}): {exc}")
+            logger.warning(f"GitHub API error (attempt {attempt + 1}/{max_retries}): {exc}")
             if attempt == max_retries - 1:
-                logger.error(f"Failed to create comment after {max_retries} attempts: {exc}")
-                raise ValueError(f"failed to create comment on pull request: {exc}") from exc
+                logger.error(f"Failed to publish comment after {max_retries} attempts: {exc}")
+                raise ValueError(f"failed to publish comment on pull request: {exc}") from exc
             time.sleep(2 ** attempt)  # Exponential backoff
         except Exception as exc:
-            logger.error(f"Unexpected error creating comment: {exc}")
+            logger.error(f"Unexpected error publishing comment: {exc}")
             raise ValueError(f"unexpected error creating comment on pull request: {exc}") from exc
 
 
