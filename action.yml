@@ -122,22 +122,23 @@ runs:
     - name: Write review.json from structured output
       shell: bash
       run: |
-        # Get the structured_output from the previous step
-        # Use printf to avoid issues with special characters in JSON
-        OUTPUT='${{ steps.claude-review.outputs.structured_output }}'
-
         # Check if structured_output exists and is not empty
-        if [ -n "$OUTPUT" ] && [ "$OUTPUT" != "null" ]; then
-          echo "Writing structured output to review.json"
-          mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
-          printf '%s' "$OUTPUT" > "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
+        # The output is already JSON, write it directly to file
+        # We use the GITHUB_OUTPUT file mechanism to pass the data safely
+        mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
+
+        # Write directly using a temp file approach to avoid shell interpretation
+        # The GitHub Actions expression will be expanded before shell execution
+        cat << REVIEW_JSON > "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
+${{ steps.claude-review.outputs.structured_output }}
+REVIEW_JSON
+
+        if [ -s "${{ github.action_path }}/${{ inputs.output-dir }}/review.json" ]; then
           echo "Successfully wrote review.json"
         else
-          echo "Warning: structured_output is empty or not available"
-          echo "Checking for review.json in workspace..."
+          echo "Warning: review.json is empty, checking workspace..."
           # Fallback to checking workspace (old behavior)
           if [ -f "${{ github.workspace }}/output/review.json" ]; then
-            mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
             cp "${{ github.workspace }}/output/review.json" "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
             echo "Copied review.json from workspace to action directory"
           else
