@@ -3,7 +3,6 @@ name: Review GitHub Actions Workflows
 on:
   pull_request:
     paths:
-      - '.github/workflows/review-workflows.yml'
       - '.github/workflows/re-review-pr.yml'
       - '.github/workflows/test-*.yml'
       - '.github/workflows/release.yml'
