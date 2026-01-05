@@ -76,8 +76,8 @@ runs:
         cd ${{ github.action_path }}
         uv run --python 3.13 -m cletus_code.run_review \
           --changed-files '${{ inputs.changed-files }}' \
-          ${{ inputs.skills != '' && format('--skills-json {0}', inputs.skills) || '' }} \
-          ${{ inputs.extra-skills != '' && format('--extra-skills {0}', inputs.extra-skills) || '' }} \
+          ${{ inputs.skills != '' && format('--skills-json ''{0}''', inputs.skills) || '' }} \
+          ${{ inputs.extra-skills != '' && format('--extra-skills ''{0}''', inputs.extra-skills) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
     # Run Claude Code with the generated prompt and JSON schema for structured output

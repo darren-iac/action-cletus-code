@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bb5b1739b1e4a4e4b5b5c2f0b9b4b4b
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Get Changed Workflow Files
         id: changed-files
@@ -53,9 +53,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           changed-files: ${{ steps.changed-files.outputs.files }}
           # Use multiple skills: local GitHub Actions reviewer + built-in PR toolkit
-          skills-json: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
+          skills: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude-args: '--dangerously-skip-permissions'
+          settings: '{"env": {"ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"}}'
 
       - name: Comment PR with Review
         if: steps.changed-files.outputs.count != '0'
