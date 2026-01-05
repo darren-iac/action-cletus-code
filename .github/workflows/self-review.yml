@@ -1,12 +1,11 @@
-name: Review GitHub Actions Workflows
+name: Self Review
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/**'
-    paths-ignore:
+      - 'src/**'
+      - 'action.yml'
       - '.github/workflows/self-review.yml'
-      - '.github/workflows/review-workflows.yml'
   workflow_dispatch:
 
 permissions:
@@ -18,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  review-workflows:
-    name: Review Workflow Changes
+  self-review:
+    name: Review Action Changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -39,7 +38,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
 
-      - name: Get Changed Workflow Files
+      - name: Get Changed Files
         id: changed-files
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -51,25 +50,23 @@ jobs:
               pull_number: context.issue.number
             });
 
-            const workflowFiles = files
+            const changedFiles = files
               .filter(f => f.status === 'modified' || f.status === 'added' || f.status === 'renamed')
-              .filter(f => f.filename.match(/^\.github\/workflows\/.*\.ya?ml$/))
-              .filter(f => !f.filename.match(/\/(self-review|review-workflows)\.yml$/))
+              .filter(f => f.filename.match(/^src\/.*\.(py|md|j2|json)|^action\.yml$/))
               .map(f => f.filename);
 
-            core.setOutput('files', JSON.stringify(workflowFiles));
-            core.setOutput('count', workflowFiles.length.toString());
-            console.log(`Found ${workflowFiles.length} workflow files to review`);
+            core.setOutput('files', JSON.stringify(changedFiles));
+            core.setOutput('count', changedFiles.length.toString());
+            console.log(`Found ${changedFiles.length} files to review:`, changedFiles);
 
-      - name: Run GitHub Actions Reviewer
+      - name: Run Self Review
         if: steps.changed-files.outputs.count != '0'
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-app-token: ${{ steps.app-token.outputs.token }}
           changed-files: ${{ steps.changed-files.outputs.files }}
-          # Use multiple skills: local GitHub Actions reviewer + built-in PR toolkit
-          skills: '["github-actions-reviewer", "builtin:pr-review-toolkit"]'
+          skills: '["builtin:pr-review-toolkit"]'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude-args: '--dangerously-skip-permissions'
           settings: '{"env": {"ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"}}'
