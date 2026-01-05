@@ -1,0 +1,85 @@
+name: Test Skills Loading
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-skills:
+    name: Test Skills Loading
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bb5b1739b1e4a4e4b5b5c2f0b9b4b4b
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Test Skills Loading
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv venv
+          source .venv/bin/activate
+          pip install -e .
+          python -c "
+          from pathlib import Path
+          from src.cletus_code.skills import SkillLoader
+
+          loader = SkillLoader(
+              workspace_root=Path('.'),
+              repository='darren-iac/action-cletus-code',
+              github_token='${{ secrets.GITHUB_TOKEN }}'
+          )
+
+          # Test 1: Load local skill
+          print('Test 1: Load local github-actions-reviewer skill')
+          result = loader.load_skills(['github-actions-reviewer'], include_defaults=False)
+          assert len(result) > 0, 'Failed to load local skill'
+          print('  ✓ Loaded {} chars'.format(len(result)))
+
+          # Test 2: Load multiple skills
+          print('Test 2: Load multiple skills')
+          result = loader.load_skills(['github-actions-reviewer', 'builtin:pr-review-toolkit'], include_defaults=False)
+          assert 'github-actions-reviewer' in result, 'Missing github-actions-reviewer'
+          assert 'PR Review Toolkit' in result, 'Missing PR Review Toolkit'
+          print('  ✓ Loaded {} chars'.format(len(result)))
+
+          # Test 3: Load defaults
+          print('Test 3: Load default skills')
+          result = loader.load_skills([], include_defaults=True)
+          assert 'PR Review Toolkit' in result, 'Missing default PR Review Toolkit'
+          print('  ✓ Loaded {} chars'.format(len(result)))
+
+          print()
+          print('All tests passed!')
+          "
+
+      - name: Test Action CLI
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv venv
+          source .venv/bin/activate
+
+          # Test the CLI with JSON array
+          python -m cletus_code.run_review --help
+
+          echo "Testing JSON array parsing:"
+          export CLETUS_SKILLS='["github-actions-reviewer", "builtin:pr-review-toolkit"]'
+          python -c "
+          import json, os
+          specs = json.loads(os.environ.get('CLETUS_SKILLS', '[]'))
+          print('  Parsed skills:', specs)
+          assert isinstance(specs, list), 'Should be a list'
+          assert len(specs) == 2, 'Should have 2 skills'
+          print('  ✓ JSON array parsing works')
+          "

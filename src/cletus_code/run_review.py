@@ -40,6 +40,8 @@ class ReviewOrchestrator:
         changed_files: list[str],
         workspace_root: Optional[Path] = None,
         skill_name: Optional[str] = None,
+        skill_specs: Optional[list[str]] = None,
+        extra_skills: Optional[list[str]] = None,
         output_dir: Optional[Path] = None,
     ):
         """Initialize the review orchestrator.
@@ -48,14 +50,21 @@ class ReviewOrchestrator:
             github_token: GitHub token for API access.
             changed_files: List of changed file paths from changed-files action.
             workspace_root: Root directory for workspace operations.
-            skill_name: Optional specific skill to use.
+            skill_name: Optional specific skill to use (deprecated, use skill_specs).
+            skill_specs: Optional list of skill specifications to load. Empty list uses defaults.
+            extra_skills: Optional list of additional skills to add to defaults.
             output_dir: Directory for output files.
         """
         self.github_token = github_token
         self.changed_files = changed_files
         self.workspace_root = workspace_root or Path.cwd()
         self.output_dir = output_dir or self.workspace_root / "output"
-        self.skill_name = skill_name
+
+        # Support skill_name (backward compat), skill_specs, and extra_skills
+        # If skill_specs is provided (non-empty), use only those
+        # Otherwise use defaults + extra_skills
+        self.skill_specs = skill_specs if skill_specs is not None else ([skill_name] if skill_name else [])
+        self.extra_skills = extra_skills or []
         self.dry_run = os.environ.get("DRY_RUN", "").lower() == "true"
 
         # Get repository info from environment
@@ -95,12 +104,24 @@ class ReviewOrchestrator:
                 except Exception as e:
                     logger.warning(f"Failed to post plugin comment: {e}")
 
-        # Step 4: Load review skill
+        # Step 4: Load review skill(s)
         from .skills import SkillLoader
 
         skill_loader = SkillLoader(self.workspace_root, self.repository, self.github_token)
-        skill = skill_loader.load_skill(self.skill_name)
-        logger.info(f"Loaded review skill ({len(skill)} chars)")
+
+        # Build final skill specs list
+        # If skill_specs was explicitly provided (non-empty), use only those
+        # Otherwise use extra_skills added to defaults
+        if self.skill_specs:
+            # User explicitly specified skills, use only those (no defaults)
+            all_specs = list(self.skill_specs)
+            skill = skill_loader.load_skills(all_specs, include_defaults=False)
+        else:
+            # No explicit skills - use defaults + extras
+            all_specs = list(self.extra_skills)
+            skill = skill_loader.load_skills(all_specs, include_defaults=True)
+
+        logger.info(f"Loaded review skill(s) ({len(skill)} chars)")
 
         # Step 5: Build Claude prompt with plugin context
         claude_prompt = self._build_claude_prompt(skill, plugin_results)
@@ -461,14 +482,16 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     Environment variables optional:
         CHANGED_FILES: JSON array of changed file paths
-        CLETUS_SKILL: Skill name to use
+        CLETUS_SKILLS: JSON array of skill specifications to use
+        CLETUS_EXTRA_SKILLS: JSON array of additional skills to add to defaults
         OUTPUT_DIR: Output directory for results
     """
     import argparse
 
     parser = argparse.ArgumentParser(description="Run Cletus Code review")
     parser.add_argument("--changed-files", help="JSON array of changed file paths")
-    parser.add_argument("--skill", help="Specific skill to use")
+    parser.add_argument("--skills-json", help="JSON array of skill specifications")
+    parser.add_argument("--extra-skills", help="JSON array of additional skills (adds to defaults)")
     parser.add_argument("--output-dir", default="output", help="Output directory")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     args = parser.parse_args(argv)
@@ -502,13 +525,40 @@ def main(argv: Optional[list[str]] = None) -> None:
         logger.error("GITHUB_TOKEN environment variable is required")
         sys.exit(1)
 
+    # Parse skills (JSON array format)
+    skill_specs: list[str] = []
+    extra_skills: list[str] = []
+
+    # Priority: --skills-json > CLETUS_SKILLS env > --extra-skills > CLETUS_EXTRA_SKILLS env
+    skills_input = args.skills_json or os.environ.get("CLETUS_SKILLS", "")
+    if skills_input:
+        try:
+            skill_specs = json.loads(skills_input)
+            if not isinstance(skill_specs, list):
+                raise ValueError("CLETUS_SKILLS must be a JSON array")
+        except json.JSONDecodeError:
+            logger.warning(f"Invalid JSON in CLETUS_SKILLS, treating as comma-separated: {skills_input}")
+            skill_specs = [s.strip() for s in skills_input.split(",") if s.strip()]
+
+    # If no skills specified, check for extra skills (adds to defaults)
+    if not skill_specs:
+        extra_skills_input = args.extra_skills or os.environ.get("CLETUS_EXTRA_SKILLS", "")
+        if extra_skills_input:
+            try:
+                extra_skills = json.loads(extra_skills_input)
+                if not isinstance(extra_skills, list):
+                    raise ValueError("CLETUS_EXTRA_SKILLS must be a JSON array")
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON in CLETUS_EXTRA_SKILLS: {extra_skills_input}")
+
     # Run orchestrator
     try:
         orchestrator = ReviewOrchestrator(
             github_token=token,
             changed_files=changed_files,
             workspace_root=Path.cwd(),
-            skill_name=args.skill or os.environ.get("CLETUS_SKILL"),
+            skill_specs=skill_specs,
+            extra_skills=extra_skills,
             output_dir=Path(args.output_dir),
         )
         orchestrator.run()
