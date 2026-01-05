@@ -80,6 +80,27 @@ runs:
           ${{ inputs.extra-skills != '' && format('--extra-skills ''{0}''', inputs.extra-skills) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
+    # Read the JSON schema content to pass inline to --json-schema flag
+    # The claude-code-action requires the schema as an inline JSON string, not a file path
+    - name: Load JSON Schema
+      id: load-schema
+      shell: bash
+      run: |
+        SCHEMA_FILE="${{ github.action_path }}/${{ inputs.output-dir }}/review-schema.json"
+        if [ -f "$SCHEMA_FILE" ]; then
+          # Read the schema and escape it for use in GitHub Actions
+          # Remove newlines and escape quotes
+          SCHEMA_CONTENT=$(cat "$SCHEMA_FILE" | jq -c .)
+          # Add to GITHUB_OUTPUT so it can be used in subsequent steps
+          {
+            echo "schema=${SCHEMA_CONTENT}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Schema loaded successfully"
+        else
+          echo "Error: Schema file not found at $SCHEMA_FILE"
+          exit 1
+        fi
+
     # Run Claude Code with the generated prompt and JSON schema for structured output
     - name: Run Claude Code
       id: claude-review
@@ -88,8 +109,9 @@ runs:
         prompt_file: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
         anthropic_api_key: ${{ inputs.anthropic-api-key }}
         # Use structured output with JSON schema to guarantee review.json creation
+        # Note: --json-schema expects an inline JSON string, not a file path
         claude_args: |
-          ${{ inputs.claude-args }} --json-schema '${{ github.action_path }}/${{ inputs.output-dir }}/review-schema.json'
+          ${{ inputs.claude-args }} --json-schema '${{ steps.load-schema.outputs.schema }}'
         settings: ${{ inputs.settings }}
         show_full_output: 'true'
       env:
