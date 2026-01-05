@@ -101,7 +101,7 @@ runs:
 
     # Run Claude Code again to generate structured JSON output
     # This is a dedicated step that uses the structured output skill
-    # to produce pure JSON without markdown fences or extra text
+    # to produce pure JSON in markdown code blocks
     - name: Generate structured review JSON
       id: claude-structured
       uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
@@ -114,7 +114,25 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        CLETUS_STRUCTURED_OUTPUT_FILE: ${{ github.action_path }}/${{ inputs.output-dir }}/review.json
+
+    # Extract JSON from structured output and write to review.json
+    - name: Extract structured JSON
+      shell: bash
+      run: |
+        set -e
+        export PATH="$HOME/.local/bin:$PATH"
+        cd ${{ github.action_path }}
+
+        # Get execution file from the structured output step
+        EXECUTION_FILE="${{ steps.claude-structured.outputs.execution_file }}"
+
+        if [ -f "$EXECUTION_FILE" ]; then
+          # Extract JSON from the execution file
+          python3 src/cletus_code/extract_json.py "$EXECUTION_FILE" "${{ inputs.output-dir }}/review.json"
+        else
+          echo "Error: Execution file not found at $EXECUTION_FILE"
+          exit 1
+        fi
 
     # Validate the structured output
     # This is a stop hook that ensures review.json is well-formed

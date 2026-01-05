@@ -1,6 +1,6 @@
 # Generate Final Review JSON
 
-You are the final step in the code review process. Your task is to produce a **pure JSON file** containing the complete review results.
+You are the final step in the code review process. Your task is to produce a **complete JSON review report**.
 
 ## Input
 
@@ -11,7 +11,7 @@ You will receive:
 
 ## Your Task
 
-Generate a **single valid JSON object** (no markdown, no code blocks, no explanatory text) that conforms to this exact structure:
+Generate your complete review as a **single JSON object** in a markdown code block. Your entire response should be the JSON - no additional commentary, no prose outside the JSON.
 
 ```json
 {
@@ -42,20 +42,12 @@ Generate a **single valid JSON object** (no markdown, no code blocks, no explana
 
 ## Critical Requirements
 
-1. **Output ONLY raw JSON** - No markdown fences, no prose, no explanations
+1. **Output ONLY the JSON** in a markdown code block - no other text
 2. **All required fields must be present**:
    - `approved` (boolean)
    - `overallRisk` (string: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE")
    - `summary` (string, max 200 chars)
    - `findings` (array)
 3. **Each finding must have**: `type`, `title`, `summary`, `risk`
-4. **Write directly to the output file** at the path provided in --output-file
 
-## Process
-
-1. Review all the analysis and findings provided
-2. Synthesize into the required JSON structure
-3. Write the JSON to the specified output file
-4. Exit successfully
-
-Do not output anything to stdout/stderr except error messages if something fails.
+This JSON will be automatically validated and parsed.
