@@ -104,49 +104,10 @@ runs:
       shell: bash
       run: |
         set -e
-
         OUTPUT_DIR="${{ github.action_path }}/${{ inputs.output-dir }}"
         EXECUTION_FILE="${{ steps.claude-review.outputs.execution_file }}"
-
         if [ -f "$EXECUTION_FILE" ]; then
-          # Extract JSON from the execution file using a Python script
-          cat > /tmp/extract_json.py << 'PYEOF'
-import json
-import re
-import sys
-
-execution_file = sys.argv[1]
-output_file = sys.argv[2]
-
-with open(execution_file, 'r') as f:
-    content = f.read()
-
-# Try to find a JSON object in the content
-# Look for content between ```json and ``` markers
-json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-if json_match:
-    json_str = json_match.group(1)
-else:
-    # Try to find a raw JSON object
-    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
-    if json_match:
-        json_str = json_match.group(0)
-    else:
-        print("Error: Could not find JSON in Claude output")
-        sys.exit(1)
-
-try:
-    data = json.loads(json_str)
-    with open(output_file, 'w') as f:
-        json.dump(data, f, indent=2)
-    print(f"Successfully wrote review.json")
-except json.JSONDecodeError as e:
-    print(f"Error: Invalid JSON: {e}")
-    print(f"JSON string was: {json_str[:500]}...")
-    sys.exit(1)
-PYEOF
-
-          python3 /tmp/extract_json.py "$EXECUTION_FILE" "$OUTPUT_DIR/review.json"
+          python3 "${{ github.action_path }}/src/cletus_code/extract_json.py" "$EXECUTION_FILE" "$OUTPUT_DIR/review.json"
         else
           echo "Error: Execution file not found at $EXECUTION_FILE"
           exit 1
