@@ -16,7 +16,12 @@
     },
     "summary": {
       "type": "string",
-      "description": "Overall summary of the review (1-3 sentences)"
+      "maxLength": 200,
+      "description": "Concise summary of the review (1-2 sentences, max ~200 characters)"
+    },
+    "automerged": {
+      "type": "boolean",
+      "description": "Whether the PR was automatically merged"
     },
     "findings": {
       "type": "array",
