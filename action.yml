@@ -120,31 +120,30 @@ runs:
 
     # Extract structured output and write to review.json
     - name: Write review.json from structured output
-      shell: bash
+      shell: pwsh
       run: |
-        # Check if structured_output exists and is not empty
-        # The output is already JSON, write it directly to file
-        # Use printf with environment variable to safely handle special characters
-        mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
+        # PowerShell handles special characters in JSON better than bash
+        $outputDir = "${{ github.action_path }}/${{ inputs.output-dir }}"
+        New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 
-        # Set the structured output as an environment variable and write it
-        # This avoids YAML parsing issues with the JSON content
-        STRUCTURED_OUTPUT="${{ steps.claude-review.outputs.structured_output }}"
-        if [ -n "$STRUCTURED_OUTPUT" ] && [ "$STRUCTURED_OUTPUT" != "null" ]; then
-          printf '%s' "$STRUCTURED_OUTPUT" > "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
-          echo "Successfully wrote review.json"
-        else
-          echo "Warning: structured_output is empty, checking workspace..."
+        $structuredOutput = "${{ steps.claude-review.outputs.structured_output }}"
+
+        if (-not [string]::IsNullOrWhiteSpace($structuredOutput)) {
+          $structuredOutput | Out-File -FilePath "$outputDir/review.json" -Encoding utf8
+          Write-Host "Successfully wrote review.json"
+        } else {
+          Write-Host "Warning: structured_output is empty, checking workspace..."
           # Fallback to checking workspace (old behavior)
-          if [ -f "${{ github.workspace }}/output/review.json" ]; then
-            cp "${{ github.workspace }}/output/review.json" "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
-            echo "Copied review.json from workspace to action directory"
-          else
-            echo "Error: review.json not found from structured_output or workspace"
-            ls -la "${{ github.workspace }}/output/" 2>/dev/null || echo "output directory doesn't exist"
+          $workspaceReview = "${{ github.workspace }}/output/review.json"
+          if (Test-Path $workspaceReview) {
+            Copy-Item $workspaceReview "$outputDir/review.json"
+            Write-Host "Copied review.json from workspace to action directory"
+          } else {
+            Write-Host "Error: review.json not found from structured_output or workspace"
+            Get-ChildItem "${{ github.workspace }}/output/" -ErrorAction SilentlyContinue | Out-Host
             exit 1
-          fi
-        fi
+          }
+        }
 
     # Process and publish the review results
     - name: Process review results
