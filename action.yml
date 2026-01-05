@@ -157,6 +157,12 @@ runs:
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         cd ${{ github.action_path }}
+        # Use the schema file that was created by run_review.py
+        # If no schema file was provided as input, use the one in output directory
+        SCHEMA_FILE="${{ inputs.schema-file }}"
+        if [ -z "$SCHEMA_FILE" ] && [ -f "${{ inputs.output-dir }}/review-schema.json" ]; then
+          SCHEMA_FILE="${{ inputs.output-dir }}/review-schema.json"
+        fi
         uv run --python 3.13 -m cletus_code.process_review \
           --output-dir "${{ inputs.output-dir }}" \
-          ${{ inputs.schema-file != '' && format('--schema-file {0}', inputs.schema-file) || '' }}
+          ${SCHEMA_FILE:+--schema-file "$SCHEMA_FILE"}
