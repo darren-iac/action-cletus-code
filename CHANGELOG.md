@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.5.0](https://github.com/darren-iac/action-cletus-code/compare/v0.4.0...v0.5.0) (2026-01-05)
+
+
+### Features
+
+* add multi-skill support with JSON array format ([#12](https://github.com/darren-iac/action-cletus-code/issues/12)) ([b0aa3b8](https://github.com/darren-iac/action-cletus-code/commit/b0aa3b8af955292d5505277fdc8d4c882c967b31))
+
+
+### Bug Fixes
+
+* ensure only one bot comment per PR review cycle ([dc4715b](https://github.com/darren-iac/action-cletus-code/commit/dc4715b01a2f356d1676ded45100fd2ab68ee00b))
+* pass json-schema inline instead of file path ([ae6fe86](https://github.com/darren-iac/action-cletus-code/commit/ae6fe864a510f718f3ba9a914dd3e76ca99b98f7))
+* pass structured output via env var to avoid parsing issues ([94f7efa](https://github.com/darren-iac/action-cletus-code/commit/94f7efa7575197f780b8ebd64d3ea1c673f24da6))
+* prevent review-workflows.yml from failing on push events ([cfd4f8c](https://github.com/darren-iac/action-cletus-code/commit/cfd4f8c8c3b0eff0cff0f78821f24c7af65291d6))
+* quote skills JSON array arguments ([a5b29aa](https://github.com/darren-iac/action-cletus-code/commit/a5b29aa6d186f501dbc0b828bfa1ec2da3a37d6e))
+* use env var for structured output to avoid YAML parsing issues ([aa91da5](https://github.com/darren-iac/action-cletus-code/commit/aa91da5bed6e577bfc482e05a269aa8caea12bb5))
+* use heredoc to safely write JSON output ([24123e5](https://github.com/darren-iac/action-cletus-code/commit/24123e543aa05687d2c8882fc599ee78e255a220))
+* use PowerShell to write JSON with special characters ([52be9ef](https://github.com/darren-iac/action-cletus-code/commit/52be9efd364adbffa686e741df4207869dc03f7a))
+* use printf instead of echo for JSON output ([55b1a10](https://github.com/darren-iac/action-cletus-code/commit/55b1a10a274e7746b657274c71d27ecdfc461e54))
+* use review-schema.json from output directory ([e4422a8](https://github.com/darren-iac/action-cletus-code/commit/e4422a8cfaa834c431d7b7991d36ee8edd4838c7))
+* use skills-json input instead of deprecated skills ([6f8be6d](https://github.com/darren-iac/action-cletus-code/commit/6f8be6dbe7d14dbf20a74194b7270b654824f505))
+* use structured output to guarantee review.json creation ([950dab6](https://github.com/darren-iac/action-cletus-code/commit/950dab680ed5fb0275473d64737a17c6167dd0ce))
+
+
+### Documentation
+
+* update action description to mention structured output ([c21fa22](https://github.com/darren-iac/action-cletus-code/commit/c21fa22d38c14f05ee1a92b15beef721421db39e))
+* update README for internal use ([77c42a8](https://github.com/darren-iac/action-cletus-code/commit/77c42a82bd4d238336e8c17f8b56e84d1f3cdd36))
+
 ## [0.4.0](https://github.com/darren-iac/action-cletus-code/compare/v0.3.1...v0.4.0) (2026-01-05)
 
 
