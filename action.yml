@@ -80,45 +80,48 @@ runs:
           ${{ inputs.extra-skills != '' && format('--extra-skills {0}', inputs.extra-skills) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
-    # Run Claude Code with the generated prompt
+    # Run Claude Code with the generated prompt and JSON schema for structured output
     - name: Run Claude Code
+      id: claude-review
       uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
       with:
         prompt_file: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
         anthropic_api_key: ${{ inputs.anthropic-api-key }}
-        # Base action doesn't accept github_token input? Let's check.
-        # It accepts env vars but inputs...
-        # Cat output showed inputs: settings, anthropic_api_key...
-        # Does it allow github_token?
-        # Inputs: prompt, prompt_file, settings, anthropic_api_key, claude_code_oauth_token, use_bedrock...
-        # It does NOT list github_token in inputs!
-        # But it sets env: GITHUB_TOKEN?
-        # No, base-action action.yml doesn't seem to set GITHUB_TOKEN or GH_TOKEN from inputs.
-        # It runs bun run index.ts.
-        # index.ts likely reads process.env.GITHUB_TOKEN.
-        # So I should pass env: GITHUB_TOKEN: ${{ inputs.github-token }}
-        # And NOT with: github_token
-        claude_args: ${{ inputs.claude-args }}
+        # Use structured output with JSON schema to guarantee review.json creation
+        claude_args: |
+          ${{ inputs.claude-args }} --json-schema '${{ github.action_path }}/${{ inputs.output-dir }}/review-schema.json'
         settings: ${{ inputs.settings }}
         show_full_output: 'true'
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        # Also try passing anthropic_api_key as env var just in case
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
 
-    # Copy review output from workspace to action directory
-    - name: Copy review output
+    # Extract structured output and write to review.json
+    - name: Write review.json from structured output
       shell: bash
       run: |
-        # Claude Code writes to output/review.json in the workspace
-        # We need to copy it to the action's output directory
-        if [ -f "${{ github.workspace }}/output/review.json" ]; then
+        # Get the structured_output from the previous step
+        OUTPUT='${{ steps.claude-review.outputs.structured_output }}'
+
+        # Check if structured_output exists and is not empty
+        if [ -n "$OUTPUT" ] && [ "$OUTPUT" != "null" ]; then
+          echo "Writing structured output to review.json"
           mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
-          cp "${{ github.workspace }}/output/review.json" "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
-          echo "Copied review.json from workspace to action directory"
+          echo "$OUTPUT" > "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
+          echo "Successfully wrote review.json"
         else
-          echo "Warning: review.json not found in workspace at ${{ github.workspace }}/output/review.json"
-          ls -la "${{ github.workspace }}/output/" || echo "output directory doesn't exist"
+          echo "Warning: structured_output is empty or not available"
+          echo "Checking for review.json in workspace..."
+          # Fallback to checking workspace (old behavior)
+          if [ -f "${{ github.workspace }}/output/review.json" ]; then
+            mkdir -p "${{ github.action_path }}/${{ inputs.output-dir }}"
+            cp "${{ github.workspace }}/output/review.json" "${{ github.action_path }}/${{ inputs.output-dir }}/review.json"
+            echo "Copied review.json from workspace to action directory"
+          else
+            echo "Error: review.json not found from structured_output or workspace"
+            ls -la "${{ github.workspace }}/output/" 2>/dev/null || echo "output directory doesn't exist"
+            exit 1
+          fi
         fi
 
     # Process and publish the review results

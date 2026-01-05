@@ -338,6 +338,30 @@ class ReviewOrchestrator:
                     sections.append(result.review_context)
                     sections.append("")
 
+        # Add instructions for structured output
+        sections.append("""
+
+## Output Format
+
+Your review will be captured using a **structured JSON output** system. Provide a comprehensive review following this structure:
+
+1. **approved** (boolean): Should this PR be merged?
+2. **overallRisk** (string): CRITICAL, HIGH, MEDIUM, LOW, or NEGLIGIBLE
+3. **summary** (string): 1-3 sentence overview of the review
+4. **findings** (array): List of specific findings, each containing:
+   - **type** (string): "finding", "version", or "resource"
+   - **title** (string): Short, descriptive title
+   - **summary** (string): Detailed explanation
+   - **risk** (string): CRITICAL, HIGH, MEDIUM, LOW, or NEGLIGIBLE
+   - **tags** (array, optional): e.g., ["security", "performance"]
+   - **cosmetic** (boolean, optional): True if stylistic only
+   - **location** (object, optional): {"resource": "...", "path": "...", "line": 123}
+   - **evidence** (object, optional): {"diff": "...", "snippet": "..."}
+
+The structured output system will automatically format your response according to the JSON schema provided.
+
+""")
+
         return "\n".join(sections)
 
     def _invoke_claude_code(self, prompt: str) -> None:
@@ -345,6 +369,7 @@ class ReviewOrchestrator:
 
         This assumes the action is being run from a workflow that will
         call Claude Code. We write the prompt to a file for the action to use.
+        We also write the JSON schema file for structured output.
 
         Args:
             prompt: The prompt to send to Claude Code.
@@ -358,9 +383,20 @@ class ReviewOrchestrator:
 
         logger.info(f"Claude prompt written to {prompt_file}")
 
+        # Copy JSON schema file for structured output
+        import shutil
+        schema_source = Path(__file__).parent / "templates" / "review-schema.json"
+        schema_dest = self.output_dir / "review-schema.json"
+
+        if schema_source.exists():
+            shutil.copy(schema_source, schema_dest)
+            logger.info(f"Review schema copied to {schema_dest}")
+        else:
+            logger.warning(f"Review schema not found at {schema_source}")
+
         # In the actual workflow, the Claude Code action would be invoked next
-        # and would read this prompt file. For now, we expect the action to be
-        # configured with the prompt as an input.
+        # with --json-schema flag pointing to the schema file.
+        # The action will use structured output and write to review.json.
 
     def _process_review_results(self, pr) -> None:
         """Process review.json and publish results.

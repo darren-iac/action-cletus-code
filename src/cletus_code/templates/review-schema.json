@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Code Review Schema",
+  "description": "Structured output format for code reviews",
+  "type": "object",
+  "required": ["approved", "overallRisk", "summary", "findings"],
+  "properties": {
+    "approved": {
+      "type": "boolean",
+      "description": "Whether the PR is approved for merge"
+    },
+    "overallRisk": {
+      "type": "string",
+      "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE"],
+      "description": "Overall risk level of the changes"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Overall summary of the review (1-3 sentences)"
+    },
+    "findings": {
+      "type": "array",
+      "description": "List of individual findings",
+      "items": {
+        "type": "object",
+        "required": ["type", "title", "summary", "risk"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["finding", "version", "resource"],
+            "description": "Type of finding"
+          },
+          "title": {
+            "type": "string",
+            "description": "Short title for the finding"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Detailed explanation of the finding"
+          },
+          "risk": {
+            "type": "string",
+            "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE"],
+            "description": "Risk level of this finding"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional tags for categorization (e.g., 'change:create', 'update:container')"
+          },
+          "cosmetic": {
+            "type": "boolean",
+            "description": "Whether this is a cosmetic/stylistic issue only"
+          },
+          "subject": {
+            "type": "object",
+            "description": "Subject of the change (for version updates)",
+            "properties": {
+              "kind": { "type": "string" },
+              "name": { "type": "string" },
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          },
+          "component": {
+            "type": "object",
+            "description": "Component being changed (alternative to subject)",
+            "properties": {
+              "kind": { "type": "string" },
+              "name": { "type": "string" },
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          },
+          "location": {
+            "type": "object",
+            "description": "Location of the issue in code",
+            "properties": {
+              "resource": { "type": "string" },
+              "path": { "type": "string" },
+              "line": { "type": "integer" },
+              "column": { "type": "integer" }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "description": "Supporting evidence for the finding",
+            "properties": {
+              "diff": { "type": "string" },
+              "snippet": { "type": "string" },
+              "yaml": { "type": "string" }
+            }
+          },
+          "references": {
+            "type": "array",
+            "description": "Related documentation or resources",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            }
+          },
+          "changeType": {
+            "type": "string",
+            "description": "For resource changes: create, update, delete"
+          }
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "description": "Alternative field for findings (backward compatibility)"
+    }
+  }
+}
