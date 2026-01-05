@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/darren-iac/action-cletus-code/compare/v0.3.1...v0.4.0) (2026-01-05)
+
+
+### Features
+
+* add local act testing support with Colima ([a3b42d0](https://github.com/darren-iac/action-cletus-code/commit/a3b42d0765a909e99a09c80a8066c8d920c4933a))
+* **ci:** add act integration tests and workflow caching ([f16b391](https://github.com/darren-iac/action-cletus-code/commit/f16b391c8d7071a949d9058e22600da67e39e548))
+
 ## [0.3.1](https://github.com/darren-iac/action-cletus-code/compare/v0.3.0...v0.3.1) (2026-01-04)
 
 
