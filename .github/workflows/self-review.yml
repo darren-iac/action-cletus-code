@@ -1,0 +1,58 @@
+name: Self Review
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'action.yml'
+      - '.github/workflows/self-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  self-review:
+    name: Review Action Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Get Changed Files
+        id: changed-files
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            const changedFiles = files
+              .filter(f => f.status === 'modified' || f.status === 'added' || f.status === 'renamed')
+              .filter(f => f.filename.match(/^src\/.*\.(py|md|j2|json)|^action\.yml$/))
+              .map(f => f.filename);
+
+            core.setOutput('files', JSON.stringify(changedFiles));
+            core.setOutput('count', changedFiles.length.toString());
+            console.log(`Found ${changedFiles.length} files to review:`, changedFiles);
+
+      - name: Run Self Review
+        if: steps.changed-files.outputs.count != '0'
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-files: ${{ steps.changed-files.outputs.files }}
+          skills: '["builtin:pr-review-toolkit"]'
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-args: '--dangerously-skip-permissions'
+          settings: '{"env": {"ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"}}'
