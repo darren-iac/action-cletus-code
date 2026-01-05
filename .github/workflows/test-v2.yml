@@ -1,0 +1,12 @@
+name: Test V2 Workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Test V2 - triggers review-workflows.yml"

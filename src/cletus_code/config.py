@@ -1,6 +1,6 @@
 """Configuration loader for process_review.
 
-Final verification test - this change triggers self-review.yml.
+Final clean test - triggers both workflows to verify single comment.
 """
 
 from copy import deepcopy
