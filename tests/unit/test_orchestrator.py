@@ -1,8 +1,7 @@
 """Unit tests for the review orchestrator."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
-from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 

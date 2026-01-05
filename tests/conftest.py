@@ -1,14 +1,12 @@
 """Shared pytest fixtures and configuration."""
 
 import json
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
-from typing import Any, Generator
+from unittest.mock import Mock
+from typing import Any
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
-from _pytest.tmpdir import TempPathFactory
 
 from github import Github
 from github.PullRequest import PullRequest

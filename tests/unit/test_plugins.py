@@ -1,12 +1,10 @@
 """Unit tests for plugins."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from typing import Any
+from unittest.mock import Mock, patch
 
-import pytest
 
-from cletus_code.plugins.base import Plugin, PluginContext, PluginResult
+from cletus_code.plugins.base import PluginContext, PluginResult
 from cletus_code.plugins.kustomize import KustomizePlugin
 
 

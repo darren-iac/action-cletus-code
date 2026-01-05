@@ -1,8 +1,7 @@
 """Unit tests for process_review module."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -180,7 +179,6 @@ class TestBuildMarkdown:
 
     def test_build_markdown_not_approved(self, workspace: Path):
         """Test markdown for non-approved review."""
-        import json
 
         review_data = {
             "approved": False,

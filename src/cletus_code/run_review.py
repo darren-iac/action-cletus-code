@@ -9,11 +9,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 from github import Github
-from github.GithubException import GithubException
 
 from .config import load_review_config, get_auto_merge_config
 from .github_utils import (
-    fetch_file_from_github,
     get_pull_request_context,
     resolve_rebase_refs,
     _resolve_pr_number,
@@ -58,6 +56,7 @@ class ReviewOrchestrator:
         self.workspace_root = workspace_root or Path.cwd()
         self.output_dir = output_dir or self.workspace_root / "output"
         self.skill_name = skill_name
+        self.dry_run = os.environ.get("DRY_RUN", "").lower() == "true"
 
         # Get repository info from environment
         self.repository = os.environ.get("GITHUB_REPOSITORY", "")
@@ -292,6 +291,9 @@ class ReviewOrchestrator:
             content: Markdown content.
         """
         logger.info("Posting plugin comment to PR")
+        if self.dry_run:
+            logger.info("DRY RUN: Skipping comment posting")
+            return
         pr.create_issue_comment(content)
 
     def _build_claude_prompt(self, skill: str, plugin_results: list[PluginResult]) -> str:

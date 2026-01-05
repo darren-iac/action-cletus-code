@@ -76,7 +76,7 @@ runs:
 
     # Run Claude Code with the generated prompt
     - name: Run Claude Code
-      uses: anthropics/claude-code-action@v1
+      uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
       with:
         prompt: ${{ github.action_path }}/../${{ inputs.output-dir }}/claude-prompt.md
         anthropic_api_key: ${{ inputs.anthropic-api-key }}

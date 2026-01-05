@@ -8,7 +8,6 @@ from typing import Any, Optional
 
 from github import Github
 from github.GithubException import GithubException
-from github.Repository import Repository
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +82,31 @@ def get_pull_request_context(
     repo = gh.get_repo(repository)
     pr = repo.get_pull(pr_number)
 
+    # Get base SHA
+    base_sha = pr.base.sha
+    
+    # Get head SHA - pr.head.sha should always be available
+    head_sha = pr.head.sha
+    
+    # Fallback: if head_sha is None or empty, try to get from commits
+    if not head_sha:
+        logger.warning(f"PR #{pr_number} head.sha is None/empty, trying commits API")
+        try:
+            commits = pr.get_commits()
+            if commits.totalCount > 0:
+                # Get the last commit (head commit)
+                head_sha = commits[commits.totalCount - 1].sha
+                logger.info(f"Got head_sha from commits: {head_sha}")
+        except Exception as e:
+            logger.error(f"Failed to get head_sha from commits: {e}")
+
+    if not head_sha:
+        raise ValueError(f"Could not determine head_sha for PR #{pr_number}. base_sha={base_sha}, head.ref={getattr(pr.head, 'ref', 'N/A')}")
+
     return {
         "pr_number": pr_number,
-        "base_sha": pr.base.sha,
-        "head_sha": pr.head.sha,
+        "base_sha": base_sha,
+        "head_sha": head_sha,
         "merge_sha": pr.merge_commit_sha,
     }
 

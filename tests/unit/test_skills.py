@@ -3,7 +3,6 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
 
 from cletus_code.skills import SkillLoader, DEFAULT_GENERAL_SKILL
 

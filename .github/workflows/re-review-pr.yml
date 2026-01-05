@@ -1,0 +1,88 @@
+name: Re-Review Remote PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: 'PR URL (e.g. https://github.com/owner/repo/pull/123)'
+        required: true
+
+jobs:
+  re-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache uv
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: |
+            ~/.local/bin/uv
+            ~/.local/share/uv
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Cache Python
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.local/share/uv/python
+          key: ${{ runner.os }}-python-3.13
+          restore-keys: |
+            ${{ runner.os }}-python-
+
+      - name: Parse PR Details
+        id: pr
+        run: |
+          URL="${{ inputs.pr_url }}"
+          if [[ $URL =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
+            echo "owner=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+            echo "repo=${BASH_REMATCH[2]}" >> $GITHUB_OUTPUT
+            echo "number=${BASH_REMATCH[3]}" >> $GITHUB_OUTPUT
+            echo "repo_full=${BASH_REMATCH[1]}/${BASH_REMATCH[2]}" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Invalid PR URL format"
+            exit 1
+          fi
+
+      - name: Get Changed Files
+        id: files
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = '${{ steps.pr.outputs.owner }}';
+            const repo = '${{ steps.pr.outputs.repo }}';
+            const pull_number = ${{ steps.pr.outputs.number }};
+            
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number
+            });
+            
+            const fileNames = files.map(f => f.filename);
+            console.log(`Found ${fileNames.length} changed files`);
+            
+            // Output as JSON string
+            core.setOutput('changed_files', JSON.stringify(fileNames));
+
+      - name: Checkout Action (Self)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # We need to ensure the local action code is available if we run this on GitHub
+        # But for 'act' with 'uses: ./', this step might be redundant if act mounts it?
+        # IMPORTANT: 'uses: ./' works in act without checkout usually. 
+        # But if we run this on real GitHub, we MUST checkout self.
+        # Since this is "Test Local", maybe we skip checkout?
+        # A safe bet is to checkout self.
+        
+      - name: Run Cletus Code Review
+        uses: ./
+        env:
+          GITHUB_REPOSITORY: ${{ steps.pr.outputs.repo_full }}
+          REVIEW_PR_NUMBER: ${{ steps.pr.outputs.number }}
+          DRY_RUN: 'true'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changed-files: ${{ steps.files.outputs.changed_files }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude-args: '--dangerously-skip-permissions'

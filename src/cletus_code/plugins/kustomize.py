@@ -4,7 +4,6 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Any
 
 from .base import Plugin, PluginContext, PluginResult
 
@@ -240,7 +239,7 @@ class KustomizePlugin(Plugin):
         lines = [
             "## Kustomize Diff Context",
             "",
-            f"The following kustomize directories were rendered and compared:",
+            "The following kustomize directories were rendered and compared:",
         ]
 
         for dir_path in dirs:

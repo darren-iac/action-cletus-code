@@ -76,13 +76,29 @@ runs:
 
     # Run Claude Code with the generated prompt
     - name: Run Claude Code
-      uses: anthropics/claude-code-action@v1
+      uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
       with:
-        prompt: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
+        prompt_file: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
         anthropic_api_key: ${{ inputs.anthropic-api-key }}
-        github_token: ${{ inputs.github-token }}
+        # Base action doesn't accept github_token input? Let's check.
+        # It accepts env vars but inputs...
+        # Cat output showed inputs: settings, anthropic_api_key...
+        # Does it allow github_token?
+        # Inputs: prompt, prompt_file, settings, anthropic_api_key, claude_code_oauth_token, use_bedrock...
+        # It does NOT list github_token in inputs!
+        # But it sets env: GITHUB_TOKEN?
+        # No, base-action action.yml doesn't seem to set GITHUB_TOKEN or GH_TOKEN from inputs.
+        # It runs bun run index.ts.
+        # index.ts likely reads process.env.GITHUB_TOKEN.
+        # So I should pass env: GITHUB_TOKEN: ${{ inputs.github-token }}
+        # And NOT with: github_token
         claude_args: ${{ inputs.claude-args }}
         settings: ${{ inputs.settings }}
+        show_full_output: 'true'
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        # Also try passing anthropic_api_key as env var just in case
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
 
     # Copy review output from workspace to action directory
     - name: Copy review output

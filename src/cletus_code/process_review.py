@@ -92,21 +92,19 @@ if __package__ is None or __name__ == "__main__":
         sys.path.insert(0, parent_dir)
     # Import from cletus_code package
     from cletus_code.config import (
-        load_config,
         get_label_config,
         load_review_config,
         get_auto_merge_config,
     )
-    from cletus_code.utils import truncate, normalize_risk, risk_sort_key, make_anchor, format_resource
+    from cletus_code.utils import truncate, normalize_risk, risk_sort_key, make_anchor
 else:
     # Running as module - use relative imports
     from .config import (
-        load_config,
         get_label_config,
         load_review_config,
         get_auto_merge_config,
     )
-    from .utils import truncate, normalize_risk, risk_sort_key, make_anchor, format_resource
+    from .utils import truncate, normalize_risk, risk_sort_key, make_anchor
 
 
 def load_review_data(review_path: Path, validate_structure: bool = True) -> dict[str, Any]:
@@ -1020,7 +1018,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         parser.add_argument("--output-dir", default="output", help="Directory containing review output files")
         parser.add_argument("--schema-file", help="Path to schema file")
         parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-        parser.add_argument("--dry-run", action="store_true", help="Validate review and write markdown, but skip PR operations")
+        parser.add_argument("--dry-run", action="store_true", default=os.environ.get("DRY_RUN", "").lower() == "true", help="Validate review and write markdown, but skip PR operations")
         args = parser.parse_args(argv)
 
         # Configure logging level based on verbose flag

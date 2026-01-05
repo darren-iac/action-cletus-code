@@ -1,10 +1,9 @@
 """Integration tests for the review workflow."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import json
 
-import pytest
 
 from cletus_code.run_review import ReviewOrchestrator
 from cletus_code.process_review import load_review_data, build_markdown
@@ -261,7 +260,7 @@ class TestEndToEndReviewProcessing:
     def test_load_validate_and_build_review(self, workspace: Path, sample_review_data: dict):
         """Test the full pipeline: load, validate, build markdown."""
         import json
-        from cletus_code.process_review import load_review_data, validate_review, build_markdown
+        from cletus_code.process_review import validate_review
 
         # Setup
         review_path = workspace / "review.json"
@@ -296,7 +295,7 @@ class TestEndToEndReviewProcessing:
     def test_review_with_validation_errors(self, workspace: Path):
         """Test review pipeline with validation errors."""
         import json
-        from cletus_code.process_review import load_review_data, validate_review, build_markdown
+        from cletus_code.process_review import validate_review
 
         # Create invalid review - add findings to pass structure validation
         review_data = {
