@@ -19,13 +19,10 @@ REQUIRED_FIELDS = ["approved", "overallRisk", "summary", "findings"]
 # Valid risk levels
 VALID_RISK_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE"]
 
-# Valid finding types
-VALID_FINDING_TYPES = [
-    "finding", "version", "resource",  # Original types
-    "info", "warning", "error", "critical",  # Severity types
-    "security", "performance", "correctness", "style",  # Category types
-    "bug", "bugfix", "vulnerability", "misconfiguration",  # Specific issue types
-]
+# Finding type validation - removed to allow AI flexibility
+# The AI can generate many descriptive types, so we only validate
+# that it's a non-empty string rather than restricting to an enum
+# VALID_FINDING_TYPES = [...]  # Disabled
 
 
 class ReviewValidationError(Exception):
@@ -157,9 +154,10 @@ def _validate_findings(findings: list[Any]) -> None:
             )
 
         # Validate finding fields
-        if finding["type"] not in VALID_FINDING_TYPES:
+        # Type validation removed - AI can generate descriptive types
+        if not isinstance(finding["type"], str) or not finding["type"].strip():
             raise ReviewValidationError(
-                f"Finding {i}: type must be one of {VALID_FINDING_TYPES}, got '{finding['type']}'"
+                f"Finding {i}: type must be a non-empty string, got {type(finding['type']).__name__}"
             )
 
         if finding["risk"] not in VALID_RISK_LEVELS:
