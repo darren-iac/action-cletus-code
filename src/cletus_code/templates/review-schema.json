@@ -32,8 +32,8 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["finding", "version", "resource"],
-            "description": "Type of finding"
+            "minLength": 1,
+            "description": "Type of finding (e.g., finding, version, resource, info, warning, security, performance, etc.)"
           },
           "title": {
             "type": "string",

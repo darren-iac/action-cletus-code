@@ -128,10 +128,21 @@ runs:
         export PATH="$HOME/.local/bin:$PATH"
         cd ${{ github.action_path }}
 
+        # Use the provided schema file, or fall back to the default
+        SCHEMA_FILE="${{ inputs.schema-file }}"
+        if [ -z "$SCHEMA_FILE" ] && [ -f "${{ inputs.output-dir }}/review-schema.json" ]; then
+          SCHEMA_FILE="${{ inputs.output-dir }}/review-schema.json"
+        fi
+
         # Run the validator
-        uv run --python 3.13 -m cletus_code.validate_json \
-          "${{ inputs.output-dir }}/review.json" \
-          "${{ inputs.output-dir }}/review-schema.json"
+        if [ -n "$SCHEMA_FILE" ]; then
+          uv run --python 3.13 -m cletus_code.validate_json \
+            "${{ inputs.output-dir }}/review.json" \
+            "$SCHEMA_FILE"
+        else
+          uv run --python 3.13 -m cletus_code.validate_json \
+            "${{ inputs.output-dir }}/review.json"
+        fi
 
     # Process and publish the review results
     - name: Process review results
