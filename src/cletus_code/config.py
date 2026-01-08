@@ -105,15 +105,21 @@ def get_label_config(config: Dict[str, Any] = None) -> Dict[str, Any]:
 def _search_upwards(candidates: Iterable[Path]) -> Path | None:
     # In GitHub Actions, the config is in GITHUB_WORKSPACE, not the action directory
     github_workspace = os.environ.get("GITHUB_WORKSPACE")
+    logger.info(f"Searching for config: GITHUB_WORKSPACE={github_workspace}, cwd={Path.cwd()}")
+
     if github_workspace:
         workspace_path = Path(github_workspace)
+        logger.info(f"Checking workspace path: {workspace_path}")
         for candidate in candidates:
             resolved = workspace_path / candidate
+            logger.info(f"  Checking: {resolved}")
             if resolved.is_file():
+                logger.info(f"  Found config at: {resolved}")
                 return resolved
 
     # Fall back to searching from current directory
     current = Path.cwd()
+    logger.info(f"Falling back to search from cwd: {current}")
     for base in (current, *current.parents):
         for candidate in candidates:
             resolved = base / candidate
