@@ -103,6 +103,16 @@ def get_label_config(config: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def _search_upwards(candidates: Iterable[Path]) -> Path | None:
+    # In GitHub Actions, the config is in GITHUB_WORKSPACE, not the action directory
+    github_workspace = os.environ.get("GITHUB_WORKSPACE")
+    if github_workspace:
+        workspace_path = Path(github_workspace)
+        for candidate in candidates:
+            resolved = workspace_path / candidate
+            if resolved.is_file():
+                return resolved
+
+    # Fall back to searching from current directory
     current = Path.cwd()
     for base in (current, *current.parents):
         for candidate in candidates:
@@ -149,7 +159,10 @@ def load_review_config(config_path: Path = None) -> Dict[str, Any]:
         config_path = _search_upwards(DEFAULT_REVIEW_CONFIG_FILES)
 
     if config_path is None or not config_path.exists():
+        logger.warning("Review config not found, using defaults (auto-merge disabled)")
         return deepcopy(DEFAULT_REVIEW_CONFIG)
+
+    logger.info(f"Loading review config from {config_path}")
 
     try:
         data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
