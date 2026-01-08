@@ -24,7 +24,7 @@ VALID_FINDING_TYPES = [
     "finding", "version", "resource",  # Original types
     "info", "warning", "error", "critical",  # Severity types
     "security", "performance", "correctness", "style",  # Category types
-    "bug", "vulnerability", "misconfiguration",  # Specific issue types
+    "bug", "bugfix", "vulnerability", "misconfiguration",  # Specific issue types
 ]
 
 
