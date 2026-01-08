@@ -20,7 +20,12 @@ REQUIRED_FIELDS = ["approved", "overallRisk", "summary", "findings"]
 VALID_RISK_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE"]
 
 # Valid finding types
-VALID_FINDING_TYPES = ["finding", "version", "resource"]
+VALID_FINDING_TYPES = [
+    "finding", "version", "resource",  # Original types
+    "info", "warning", "error", "critical",  # Severity types
+    "security", "performance", "correctness", "style",  # Category types
+    "bug", "vulnerability", "misconfiguration",  # Specific issue types
+]
 
 
 class ReviewValidationError(Exception):
