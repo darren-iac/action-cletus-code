@@ -929,8 +929,13 @@ def publish_comment(pr: PullRequest, markdown: str) -> None:
             raise ValueError(f"unexpected error creating comment on pull request: {exc}") from exc
 
 
-def approve_and_merge(pr: PullRequest) -> None:
-    """Approve and merge pull request with comprehensive error handling."""
+def approve_and_merge(pr: PullRequest, markdown: str = "Automated approval based on structured review.") -> None:
+    """Approve and merge pull request with comprehensive error handling.
+
+    Args:
+        pr: PullRequest to approve and merge.
+        markdown: Review content to include in the approval body.
+    """
     logger.info("Checking if pull request is already merged")
 
     try:
@@ -949,7 +954,7 @@ def approve_and_merge(pr: PullRequest) -> None:
         try:
             logger.debug(f"Creating approval review (attempt {attempt + 1}/{max_retries})")
             pr.create_review(
-                body="Automated approval based on structured review.",
+                body=markdown,
                 event="APPROVE"
             )
             logger.info("Successfully created approval review")
@@ -1199,7 +1204,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         elif will_automerge:
             logger.info("Review is approved and validation passed, attempting to approve and merge PR")
             try:
-                approve_and_merge(pr)
+                approve_and_merge(pr, markdown)
                 automerged = True
             except Exception as exc:
                 logger.error(f"Failed to approve and merge PR: {exc}")
