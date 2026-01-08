@@ -84,24 +84,8 @@ runs:
           ${{ inputs.extra-skills != '' && format('--extra-skills ''{0}''', inputs.extra-skills) || '' }} \
           --output-dir "${{ inputs.output-dir }}"
 
-    # Run Claude Code for review analysis
-    # This step performs the actual code review and analysis
-    - name: Run review analysis
-      id: claude-analysis
-      uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
-      with:
-        prompt_file: ${{ github.action_path }}/${{ inputs.output-dir }}/claude-prompt.md
-        anthropic_api_key: ${{ inputs.anthropic-api-key }}
-        claude_args: ${{ inputs.claude-args }}
-        settings: ${{ inputs.settings }}
-        show_full_output: 'true'
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-
-    # Run Claude Code again to generate structured JSON output
-    # This is a dedicated step that uses the structured output skill
-    # to produce pure JSON in markdown code blocks
+    # Run Claude Code to generate structured review JSON
+    # This step performs both analysis and generates the final JSON output
     - name: Generate structured review JSON
       id: claude-structured
       uses: anthropics/claude-code-action/base-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f # v1.0.27
