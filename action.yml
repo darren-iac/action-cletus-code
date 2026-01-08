@@ -149,6 +149,7 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-app-token || inputs.github-token }}
+        GITHUB_WORKSPACE: ${{ github.workspace }}
         OUTPUT_DIR: ${{ inputs.output-dir }}
         REVIEW_SCHEMA_FILE: ${{ inputs.schema-file }}
       run: |
