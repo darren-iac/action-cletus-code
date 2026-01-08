@@ -117,6 +117,17 @@ def _search_upwards(candidates: Iterable[Path]) -> Path | None:
                 logger.info(f"  Found config at: {resolved}")
                 return resolved
 
+        # Also try parent directory in case workspace is nested (e.g., owner/repo/repo)
+        parent_workspace = workspace_path.parent
+        if parent_workspace != workspace_path:
+            logger.info(f"Checking parent workspace path: {parent_workspace}")
+            for candidate in candidates:
+                resolved = parent_workspace / candidate
+                logger.info(f"  Checking: {resolved}")
+                if resolved.is_file():
+                    logger.info(f"  Found config at: {resolved}")
+                    return resolved
+
     # Fall back to searching from current directory
     current = Path.cwd()
     logger.info(f"Falling back to search from cwd: {current}")
