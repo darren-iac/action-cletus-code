@@ -1055,7 +1055,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         # Validate and setup paths
         review_path = Path(args.output_dir) / "review.json"
         markdown_path = Path(args.output_dir) / "review.md"
-        schema_path = Path(args.schema_file) if args.schema_file else Path(".github/workflows/temu-claude-review.schema.json")
+        schema_path = Path(args.schema_file) if args.schema_file else Path(".github/workflows/cletus-review.schema.json")
 
         logger.info(f"Initial paths - review: {review_path}, schema: {schema_path}, markdown: {markdown_path}")
 
@@ -1076,7 +1076,7 @@ def main(argv: Optional[list[str]] = None) -> None:
 
         if not schema_path.exists():
             logger.info(f"Schema file not found at {schema_path}, searching workspace")
-            found_schema = find_file_in_workspace("temu-claude-review.schema.json", "..")
+            found_schema = find_file_in_workspace("cletus-review.schema.json", "..")
             if found_schema.exists():
                 logger.info(f"Found schema file at: {found_schema}")
                 schema_path = found_schema
