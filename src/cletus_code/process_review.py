@@ -946,6 +946,20 @@ def approve_and_merge(pr: PullRequest, markdown: str = "Automated approval based
         logger.error(f"Failed to check if PR is merged: {exc}")
         raise ValueError(f"failed to check pull request merge status: {exc}") from exc
 
+    # Check if there's already a review from cletus-code on this PR
+    # This prevents duplicate reviews when multiple workflows run for the same PR
+    logger.info("Checking for existing cletus-code reviews")
+    try:
+        reviews = pr.get_reviews()
+        for review in reviews:
+            # Check if this is a review from cletus-code bot
+            if review.user and review.user.type == "Bot" and review.user.login and "cletus-code" in review.user.login.lower():
+                logger.info(f"cletus-code review already exists (ID: {review.id}), skipping review and merge to ensure only one review per code change")
+                return
+    except Exception as exc:
+        logger.warning(f"Could not check for existing reviews: {exc}")
+        # Continue to attempt posting review
+
     logger.info("Approving pull request")
 
     # Create review (approval) with retry logic
