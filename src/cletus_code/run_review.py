@@ -569,9 +569,9 @@ Your analysis will be used to generate the final structured review report.
         """
         # Check common locations
         candidates = [
-            self.workspace_root / ".github" / "workflows" / "temu-claude-review.schema.json",
+            self.workspace_root / ".github" / "workflows" / "cletus-review.schema.json",
             self.workspace_root / ".github" / "cletus-review.schema.json",
-            self.pr_dir / ".github" / "workflows" / "temu-claude-review.schema.json",
+            self.pr_dir / ".github" / "workflows" / "cletus-review.schema.json",
         ]
 
         for candidate in candidates:
