@@ -1190,17 +1190,15 @@ def main(argv: Optional[list[str]] = None) -> None:
             logger.error(f"Failed to apply labels: {exc}")
             raise ValueError(f"failed to apply labels: {exc}") from exc
 
-        # Publish comment (single comment with all info including automerge status)
-        logger.info("Publishing review comment")
-        try:
-            publish_comment(pr, markdown)
-        except Exception as exc:
-            logger.error(f"Failed to publish comment: {exc}")
-            raise ValueError(f"failed to publish comment: {exc}") from exc
-
         # Approve and merge if conditions are met
         if skip_merge:
             logger.info("Skipping approval/merge due to review replay mode")
+            # Still post a comment in replay mode
+            try:
+                publish_comment(pr, markdown)
+            except Exception as exc:
+                logger.error(f"Failed to publish comment: {exc}")
+                raise ValueError(f"failed to publish comment: {exc}") from exc
         elif will_automerge:
             logger.info("Review is approved and validation passed, attempting to approve and merge PR")
             try:
@@ -1210,6 +1208,13 @@ def main(argv: Optional[list[str]] = None) -> None:
                 logger.error(f"Failed to approve and merge PR: {exc}")
                 raise ValueError(f"failed to approve and merge PR: {exc}") from exc
         else:
+            # Not auto-merging, so post a comment instead
+            try:
+                publish_comment(pr, markdown)
+            except Exception as exc:
+                logger.error(f"Failed to publish comment: {exc}")
+                raise ValueError(f"failed to publish comment: {exc}") from exc
+
             if validation_errors:
                 logger.warning(f"Skipping approval/merge due to {len(validation_errors)} validation errors")
             if not approved:
