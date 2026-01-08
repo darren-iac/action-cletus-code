@@ -92,6 +92,11 @@ class ReviewOrchestrator:
         pr = self.repo.get_pull(pr_context["pr_number"])
         logger.info(f"Processing PR #{pr.number}: {pr.title}")
 
+        # Store PR body for use in structured review
+        self.pr_body = pr.body or ""
+        if self.pr_body:
+            logger.info(f"PR description: {self.pr_body[:200]}...")
+
         # Step 2: Checkout PR and base branches
         self._checkout_branches(pr_context)
 
@@ -390,8 +395,14 @@ Your analysis will be used to generate the final structured review report.
             f"- **PR Number**: {pr.number}\n",
             f"- **PR Title**: {pr.title}\n",
             f"- **Changed Files**: {len(self.changed_files)} files\n",
-            f"\n# Files Reviewed\n",
         ]
+
+        # Add PR description/body if available (valuable for Renovate PRs)
+        if hasattr(self, 'pr_body') and self.pr_body:
+            context_parts.append(f"\n# PR Description\n")
+            context_parts.append(f"{self.pr_body}\n")
+
+        context_parts.append(f"\n# Files Reviewed\n")
 
         for f in self.changed_files:
             context_parts.append(f"- {f}\n")
