@@ -128,6 +128,17 @@ def _search_upwards(candidates: Iterable[Path]) -> Path | None:
                     logger.info(f"  Found config at: {resolved}")
                     return resolved
 
+        # Also try the PR checkout directory created by run_review.py
+        pr_checkout = Path.cwd() / "pull-request"
+        if pr_checkout.exists():
+            logger.info(f"Checking PR checkout path: {pr_checkout}")
+            for candidate in candidates:
+                resolved = pr_checkout / candidate
+                logger.info(f"  Checking: {resolved}")
+                if resolved.is_file():
+                    logger.info(f"  Found config at: {resolved}")
+                    return resolved
+
     # Fall back to searching from current directory
     current = Path.cwd()
     logger.info(f"Falling back to search from cwd: {current}")
