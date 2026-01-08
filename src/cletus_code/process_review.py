@@ -1193,12 +1193,16 @@ def main(argv: Optional[list[str]] = None) -> None:
         # Approve and merge if conditions are met
         if skip_merge:
             logger.info("Skipping approval/merge due to review replay mode")
-            # Still post a comment in replay mode
-            try:
-                publish_comment(pr, markdown)
-            except Exception as exc:
-                logger.error(f"Failed to publish comment: {exc}")
-                raise ValueError(f"failed to publish comment: {exc}") from exc
+            # Check if PR is already merged before posting comment
+            if pr.is_merged():
+                logger.info("Pull request is already merged, skipping comment in replay mode")
+            else:
+                # Still post a comment in replay mode if PR is open
+                try:
+                    publish_comment(pr, markdown)
+                except Exception as exc:
+                    logger.error(f"Failed to publish comment: {exc}")
+                    raise ValueError(f"failed to publish comment: {exc}") from exc
         elif will_automerge:
             logger.info("Review is approved and validation passed, attempting to approve and merge PR")
             try:
@@ -1208,12 +1212,15 @@ def main(argv: Optional[list[str]] = None) -> None:
                 logger.error(f"Failed to approve and merge PR: {exc}")
                 raise ValueError(f"failed to approve and merge PR: {exc}") from exc
         else:
-            # Not auto-merging, so post a comment instead
-            try:
-                publish_comment(pr, markdown)
-            except Exception as exc:
-                logger.error(f"Failed to publish comment: {exc}")
-                raise ValueError(f"failed to publish comment: {exc}") from exc
+            # Not auto-merging, so post a comment instead (if PR is not merged)
+            if not pr.is_merged():
+                try:
+                    publish_comment(pr, markdown)
+                except Exception as exc:
+                    logger.error(f"Failed to publish comment: {exc}")
+                    raise ValueError(f"failed to publish comment: {exc}") from exc
+            else:
+                logger.info("Pull request is already merged, skipping comment")
 
             if validation_errors:
                 logger.warning(f"Skipping approval/merge due to {len(validation_errors)} validation errors")
