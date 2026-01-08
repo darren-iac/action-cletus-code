@@ -92,6 +92,11 @@ class ReviewOrchestrator:
         pr = self.repo.get_pull(pr_context["pr_number"])
         logger.info(f"Processing PR #{pr.number}: {pr.title}")
 
+        # Store PR body for use in structured review
+        self.pr_body = pr.body or ""
+        if self.pr_body:
+            logger.info(f"PR description: {self.pr_body[:200]}...")
+
         # Step 2: Checkout PR and base branches
         self._checkout_branches(pr_context)
 
@@ -104,7 +109,7 @@ class ReviewOrchestrator:
                 except Exception as e:
                     logger.warning(f"Failed to post plugin comment: {e}")
 
-        # Step 4: Load review skill(s)
+        # Step 4: Load review skill(s) for analysis
         from .skills import SkillLoader
 
         skill_loader = SkillLoader(self.workspace_root, self.repository, self.github_token)
@@ -123,12 +128,16 @@ class ReviewOrchestrator:
 
         logger.info(f"Loaded review skill(s) ({len(skill)} chars)")
 
-        # Step 5: Build Claude prompt with plugin context
-        claude_prompt = self._build_claude_prompt(skill, plugin_results)
+        # Step 5: Build analysis prompt and invoke Claude for review analysis
+        # This step does the actual code review work
+        analysis_prompt = self._build_analysis_prompt(skill, plugin_results)
+        self._invoke_claude_code(analysis_prompt)
 
-        # Step 6: Invoke Claude Code action
-        self._invoke_claude_code(claude_prompt)
+        # Step 6: Generate structured JSON output
+        # This is a separate step that produces the final review.json
+        self._generate_structured_review(pr)
 
+        # Note: Validation happens in action.yml after Claude Code runs
         # Step 7: Process and publish review results
         self._process_review_results(pr)
 
@@ -317,15 +326,19 @@ class ReviewOrchestrator:
             return
         pr.create_issue_comment(content)
 
-    def _build_claude_prompt(self, skill: str, plugin_results: list[PluginResult]) -> str:
-        """Build the Claude Code prompt with skill and plugin context.
+    def _build_analysis_prompt(self, skill: str, plugin_results: list[PluginResult]) -> str:
+        """Build the analysis prompt for code review.
+
+        This prompt is for the initial review/analysis phase where Claude
+        examines the code and provides feedback. The structured JSON output
+        is generated in a separate step.
 
         Args:
             skill: Review skill content.
             plugin_results: Results from plugins.
 
         Returns:
-            Complete prompt for Claude Code.
+            Complete prompt for Claude Code analysis.
         """
         sections = [skill]
 
@@ -338,31 +351,104 @@ class ReviewOrchestrator:
                     sections.append(result.review_context)
                     sections.append("")
 
-        # Add instructions for structured output
+        # Note: We don't ask for JSON here - that's done in the structured step
         sections.append("""
 
-## Output Format
+## Analysis Instructions
 
-Your review will be captured using a **structured JSON output** system. Provide a comprehensive review following this structure:
+Conduct a thorough code review of the changes. Provide your analysis
+including:
+- Security concerns
+- Bug risks
+- Performance issues
+- Code quality and maintainability
+- Testing gaps
 
-1. **approved** (boolean): Should this PR be merged?
-2. **overallRisk** (string): CRITICAL, HIGH, MEDIUM, LOW, or NEGLIGIBLE
-3. **summary** (string): 1-3 sentence overview of the review
-4. **findings** (array): List of specific findings, each containing:
-   - **type** (string): "finding", "version", or "resource"
-   - **title** (string): Short, descriptive title
-   - **summary** (string): Detailed explanation
-   - **risk** (string): CRITICAL, HIGH, MEDIUM, LOW, or NEGLIGIBLE
-   - **tags** (array, optional): e.g., ["security", "performance"]
-   - **cosmetic** (boolean, optional): True if stylistic only
-   - **location** (object, optional): {"resource": "...", "path": "...", "line": 123}
-   - **evidence** (object, optional): {"diff": "...", "snippet": "..."}
-
-The structured output system will automatically format your response according to the JSON schema provided.
-
+Your analysis will be used to generate the final structured review report.
 """)
 
         return "\n".join(sections)
+
+    def _generate_structured_review(self, pr) -> None:
+        """Generate the structured review.json using the dedicated skill.
+
+        This is the final step that produces the guaranteed JSON output.
+
+        Args:
+            pr: PullRequest object.
+        """
+        logger.info("Generating structured review JSON")
+
+        # Load the structured output skill
+        skill_template = Path(__file__).parent / "templates" / "generate_review_json_skill.md"
+        if not skill_template.exists():
+            logger.error(f"Structured review skill not found at {skill_template}")
+            raise FileNotFoundError(f"Required skill template not found: {skill_template}")
+
+        skill_content = skill_template.read_text()
+
+        # Build context for the structured skill
+        # Include information about what was reviewed
+        context_parts = [
+            f"# PR Context\n",
+            f"- **Repository**: {self.repository}\n",
+            f"- **PR Number**: {pr.number}\n",
+            f"- **PR Title**: {pr.title}\n",
+            f"- **Changed Files**: {len(self.changed_files)} files\n",
+        ]
+
+        # Add PR description/body if available (valuable for Renovate PRs)
+        if hasattr(self, 'pr_body') and self.pr_body:
+            context_parts.append(f"\n# PR Description\n")
+            context_parts.append(f"{self.pr_body}\n")
+
+        context_parts.append(f"\n# Files Reviewed\n")
+
+        for f in self.changed_files:
+            context_parts.append(f"- {f}\n")
+
+        context_parts.append("\n# Previous Analysis\n")
+        context_parts.append("The review analysis has been completed. Your task is to\n")
+        context_parts.append("synthesize this into the final structured JSON report.\n")
+
+        # Combine context with skill
+        full_prompt = "\n".join(context_parts) + "\n\n" + skill_content
+
+        # Write prompt for the structured step
+        prompt_file = self.output_dir / "structured-review-prompt.md"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        prompt_file.write_text(full_prompt)
+
+        # Set environment variable to indicate this is the structured step
+        # The action will use this to know where to write the output
+        import os
+        os.environ["CLETUS_STRUCTURED_OUTPUT_FILE"] = str(self.output_dir / "review.json")
+
+        # Invoke Claude Code for structured output
+        self._invoke_claude_code_structured(full_prompt)
+
+    def _invoke_claude_code_structured(self, prompt: str) -> None:
+        """Invoke Claude Code for structured JSON output.
+
+        This is a separate invocation specifically for generating the final
+        review.json file. It uses the structured output skill that knows
+        how to produce pure JSON without markdown fences or extra text.
+
+        Args:
+            prompt: The structured output prompt.
+        """
+        logger.info("Invoking Claude Code for structured output")
+
+        # Write prompt to file
+        prompt_file = self.output_dir / "structured-review-prompt.md"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        prompt_file.write_text(prompt)
+
+        logger.info(f"Structured output prompt written to {prompt_file}")
+        logger.info(f"Output will be written to {self.output_dir / 'review.json'}")
+
+        # In the actual workflow, the Claude Code action would be invoked next
+        # with the structured prompt. The action will write directly to review.json
 
     def _invoke_claude_code(self, prompt: str) -> None:
         """Invoke the Claude Code action.
@@ -483,9 +569,9 @@ The structured output system will automatically format your response according t
         """
         # Check common locations
         candidates = [
-            self.workspace_root / ".github" / "workflows" / "temu-claude-review.schema.json",
+            self.workspace_root / ".github" / "workflows" / "cletus-review.schema.json",
             self.workspace_root / ".github" / "cletus-review.schema.json",
-            self.pr_dir / ".github" / "workflows" / "temu-claude-review.schema.json",
+            self.pr_dir / ".github" / "workflows" / "cletus-review.schema.json",
         ]
 
         for candidate in candidates:

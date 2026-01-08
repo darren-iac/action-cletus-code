@@ -929,8 +929,13 @@ def publish_comment(pr: PullRequest, markdown: str) -> None:
             raise ValueError(f"unexpected error creating comment on pull request: {exc}") from exc
 
 
-def approve_and_merge(pr: PullRequest) -> None:
-    """Approve and merge pull request with comprehensive error handling."""
+def approve_and_merge(pr: PullRequest, markdown: str = "Automated approval based on structured review.") -> None:
+    """Approve and merge pull request with comprehensive error handling.
+
+    Args:
+        pr: PullRequest to approve and merge.
+        markdown: Review content to include in the approval body.
+    """
     logger.info("Checking if pull request is already merged")
 
     try:
@@ -941,6 +946,20 @@ def approve_and_merge(pr: PullRequest) -> None:
         logger.error(f"Failed to check if PR is merged: {exc}")
         raise ValueError(f"failed to check pull request merge status: {exc}") from exc
 
+    # Check if there's already a review from cletus-code on this PR
+    # This prevents duplicate reviews when multiple workflows run for the same PR
+    logger.info("Checking for existing cletus-code reviews")
+    try:
+        reviews = pr.get_reviews()
+        for review in reviews:
+            # Check if this is a review from cletus-code bot
+            if review.user and review.user.type == "Bot" and review.user.login and "cletus-code" in review.user.login.lower():
+                logger.info(f"cletus-code review already exists (ID: {review.id}), skipping review and merge to ensure only one review per code change")
+                return
+    except Exception as exc:
+        logger.warning(f"Could not check for existing reviews: {exc}")
+        # Continue to attempt posting review
+
     logger.info("Approving pull request")
 
     # Create review (approval) with retry logic
@@ -949,7 +968,7 @@ def approve_and_merge(pr: PullRequest) -> None:
         try:
             logger.debug(f"Creating approval review (attempt {attempt + 1}/{max_retries})")
             pr.create_review(
-                body="Automated approval based on structured review.",
+                body=markdown,
                 event="APPROVE"
             )
             logger.info("Successfully created approval review")
@@ -1050,7 +1069,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         # Validate and setup paths
         review_path = Path(args.output_dir) / "review.json"
         markdown_path = Path(args.output_dir) / "review.md"
-        schema_path = Path(args.schema_file) if args.schema_file else Path(".github/workflows/temu-claude-review.schema.json")
+        schema_path = Path(args.schema_file) if args.schema_file else Path(".github/workflows/cletus-review.schema.json")
 
         logger.info(f"Initial paths - review: {review_path}, schema: {schema_path}, markdown: {markdown_path}")
 
@@ -1071,7 +1090,7 @@ def main(argv: Optional[list[str]] = None) -> None:
 
         if not schema_path.exists():
             logger.info(f"Schema file not found at {schema_path}, searching workspace")
-            found_schema = find_file_in_workspace("temu-claude-review.schema.json", "..")
+            found_schema = find_file_in_workspace("cletus-review.schema.json", "..")
             if found_schema.exists():
                 logger.info(f"Found schema file at: {found_schema}")
                 schema_path = found_schema
@@ -1185,26 +1204,38 @@ def main(argv: Optional[list[str]] = None) -> None:
             logger.error(f"Failed to apply labels: {exc}")
             raise ValueError(f"failed to apply labels: {exc}") from exc
 
-        # Publish comment (single comment with all info including automerge status)
-        logger.info("Publishing review comment")
-        try:
-            publish_comment(pr, markdown)
-        except Exception as exc:
-            logger.error(f"Failed to publish comment: {exc}")
-            raise ValueError(f"failed to publish comment: {exc}") from exc
-
         # Approve and merge if conditions are met
         if skip_merge:
             logger.info("Skipping approval/merge due to review replay mode")
+            # Check if PR is already merged before posting comment
+            if pr.is_merged():
+                logger.info("Pull request is already merged, skipping comment in replay mode")
+            else:
+                # Still post a comment in replay mode if PR is open
+                try:
+                    publish_comment(pr, markdown)
+                except Exception as exc:
+                    logger.error(f"Failed to publish comment: {exc}")
+                    raise ValueError(f"failed to publish comment: {exc}") from exc
         elif will_automerge:
             logger.info("Review is approved and validation passed, attempting to approve and merge PR")
             try:
-                approve_and_merge(pr)
+                approve_and_merge(pr, markdown)
                 automerged = True
             except Exception as exc:
                 logger.error(f"Failed to approve and merge PR: {exc}")
                 raise ValueError(f"failed to approve and merge PR: {exc}") from exc
         else:
+            # Not auto-merging, so post a comment instead (if PR is not merged)
+            if not pr.is_merged():
+                try:
+                    publish_comment(pr, markdown)
+                except Exception as exc:
+                    logger.error(f"Failed to publish comment: {exc}")
+                    raise ValueError(f"failed to publish comment: {exc}") from exc
+            else:
+                logger.info("Pull request is already merged, skipping comment")
+
             if validation_errors:
                 logger.warning(f"Skipping approval/merge due to {len(validation_errors)} validation errors")
             if not approved:

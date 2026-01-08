@@ -103,7 +103,45 @@ def get_label_config(config: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def _search_upwards(candidates: Iterable[Path]) -> Path | None:
+    # In GitHub Actions, the config is in GITHUB_WORKSPACE, not the action directory
+    github_workspace = os.environ.get("GITHUB_WORKSPACE")
+    logger.info(f"Searching for config: GITHUB_WORKSPACE={github_workspace}, cwd={Path.cwd()}")
+
+    if github_workspace:
+        workspace_path = Path(github_workspace)
+        logger.info(f"Checking workspace path: {workspace_path}")
+        for candidate in candidates:
+            resolved = workspace_path / candidate
+            logger.info(f"  Checking: {resolved}")
+            if resolved.is_file():
+                logger.info(f"  Found config at: {resolved}")
+                return resolved
+
+        # Also try parent directory in case workspace is nested (e.g., owner/repo/repo)
+        parent_workspace = workspace_path.parent
+        if parent_workspace != workspace_path:
+            logger.info(f"Checking parent workspace path: {parent_workspace}")
+            for candidate in candidates:
+                resolved = parent_workspace / candidate
+                logger.info(f"  Checking: {resolved}")
+                if resolved.is_file():
+                    logger.info(f"  Found config at: {resolved}")
+                    return resolved
+
+        # Also try the PR checkout directory created by run_review.py
+        pr_checkout = Path.cwd() / "pull-request"
+        if pr_checkout.exists():
+            logger.info(f"Checking PR checkout path: {pr_checkout}")
+            for candidate in candidates:
+                resolved = pr_checkout / candidate
+                logger.info(f"  Checking: {resolved}")
+                if resolved.is_file():
+                    logger.info(f"  Found config at: {resolved}")
+                    return resolved
+
+    # Fall back to searching from current directory
     current = Path.cwd()
+    logger.info(f"Falling back to search from cwd: {current}")
     for base in (current, *current.parents):
         for candidate in candidates:
             resolved = base / candidate
@@ -149,7 +187,10 @@ def load_review_config(config_path: Path = None) -> Dict[str, Any]:
         config_path = _search_upwards(DEFAULT_REVIEW_CONFIG_FILES)
 
     if config_path is None or not config_path.exists():
+        logger.warning("Review config not found, using defaults (auto-merge disabled)")
         return deepcopy(DEFAULT_REVIEW_CONFIG)
+
+    logger.info(f"Loading review config from {config_path}")
 
     try:
         data = yaml.safe_load(config_path.read_text(encoding="utf-8"))

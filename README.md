@@ -460,3 +460,6 @@ MIT — see [LICENSE](./LICENSE).
 ## Another test
 ## Final test
 # Test comment
+# Test change to trigger review
+
+This is a simple change to test that the unified review workflow runs properly and reviews the action's own code.
