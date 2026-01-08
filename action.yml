@@ -65,6 +65,25 @@ runs:
         uv --version
         uv python install 3.13
 
+    # Setup GitHub CLI
+    - name: Setup GitHub CLI
+      shell: bash
+      run: |
+        if type -p gh >/dev/null 2>&1; then
+          echo "gh already installed"
+        else
+          echo "Installing GitHub CLI..."
+          tmpdir=$(mktemp -d)
+          cd "$tmpdir"
+          curl -LO https://github.com/cli/cli/releases/download/v2.50.0/gh_2.50.0_linux_amd64.tar.gz
+          tar xzf gh_2.50.0_linux_amd64.tar.gz
+          sudo cp gh_2.50.0_linux_amd64/bin/gh /usr/local/bin/
+          cd -
+          rm -rf "$tmpdir"
+          echo "GitHub CLI installed successfully"
+        fi
+        gh --version
+
     # Run the review orchestrator
     - name: Run review orchestrator
       shell: bash
